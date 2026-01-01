@@ -105,7 +105,17 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("☕ 自家焙煎コーヒー豆 収益シミュレーター")
+    # Layout: Title on Left, Donation on Right
+    col_header, col_donate = st.columns([3, 1])
+    
+    with col_header:
+        st.title("☕ 自家焙煎コーヒー豆 収益シミュレーター")
+    
+    with col_donate:
+        st.write("") # Adjust vertical alignment
+        st.link_button("🎁 開発を応援する！", "https://square.link/u/CYYWh8wX", help="寄付ページへ移動します")
+        st.caption("開発者のAI重課金を救おう！")
+
     
     with st.expander("ℹ️ このツールについて", expanded=False):
         st.write("""
