@@ -39,6 +39,12 @@ def main():
         .stTextInput input, .stNumberInput input {
             border-radius: 6px;
             border: 1px solid #e2e8f0;
+            color: #0f172a;
+        }
+
+        /* Widget Labels - Force Dark Color */
+        .stTextInput label, .stNumberInput label, .stSlider label, .stSelectbox label {
+            color: #334155 !important;
         }
         
         /* Mobile Card Styling */
