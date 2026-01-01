@@ -29,4 +29,5 @@ venv/
 .DS_Store
 
 # Streamlit
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
