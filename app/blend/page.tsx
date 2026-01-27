@@ -7,7 +7,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStorage } from '../../contexts/StorageContext';
 
 // Components
-import { Header } from '../../components/layout/Header';
+// Header is in Layout
 import { GlobalSettingsForm } from '../../components/dashboard/GlobalSettingsForm';
 import { FeeSimulator } from '../../components/dashboard/FeeSimulator';
 import { BlendRecipeForm } from '../../components/dashboard/BlendRecipeForm';
@@ -74,7 +74,7 @@ export default function BlendPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
-            <Header />
+            {/* Header and Nav are in Layout */}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
