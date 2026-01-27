@@ -20,18 +20,18 @@ export const NavigationTabs: React.FC = () => {
                     <div className="flex space-x-4 h-full">
                         <Link
                             href="/"
-                            className={`inline-flex items-center px-1 border-b-2 text-sm font-medium h-full transition-colors ${pathname === '/'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                            className={`inline-flex items-center px-1 border-b-2 text-xs sm:text-sm font-medium h-full transition-colors ${pathname === '/'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                                 }`}
                         >
                             ☕ {t.common.nav.single}
                         </Link>
                         <Link
                             href="/blend"
-                            className={`inline-flex items-center px-1 border-b-2 text-sm font-medium h-full transition-colors ${isBlend
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                            className={`inline-flex items-center px-1 border-b-2 text-xs sm:text-sm font-medium h-full transition-colors ${isBlend
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                                 }`}
                         >
                             🔄 {t.common.nav.blend}
