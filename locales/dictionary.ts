@@ -137,7 +137,7 @@ export interface Dictionary {
 export const dictionaries: Record<Locale, Dictionary> = {
     ja: {
         common: {
-            title: 'コーヒー原価・利益シミュレーター',
+            title: 'コーヒー原価計算・価格シミュレータ',
             subtitle: 'Next.js Edition',
             supportDev: '開発を応援する',
             nav: {
