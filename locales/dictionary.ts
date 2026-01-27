@@ -26,6 +26,11 @@ export interface Dictionary {
         taxSettings: string;
         isTaxable: string;
         taxRate: string;
+        roastOptions: {
+            light: string;
+            medium: string;
+            dark: string;
+        };
         newBadge: string;
     };
     feeSimulator: {
@@ -161,6 +166,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
             taxSettings: '消費税設定',
             isTaxable: '課税事業者ですか？',
             taxRate: '軽減税率 (%)',
+            roastOptions: {
+                light: '浅煎り (10%)',
+                medium: '中煎り (15%)',
+                dark: '深煎り (20%)',
+            },
             newBadge: 'New',
         },
         feeSimulator: {
@@ -293,6 +303,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
             taxSettings: 'Tax Settings',
             isTaxable: 'Are you a Taxable Entity?',
             taxRate: 'Reduced Tax Rate (%)',
+            roastOptions: {
+                light: 'Light Roast (10%)',
+                medium: 'Medium Roast (15%)',
+                dark: 'Dark Roast (20%)',
+            },
             newBadge: 'New',
         },
         feeSimulator: {
