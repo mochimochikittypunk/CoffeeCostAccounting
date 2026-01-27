@@ -31,6 +31,11 @@ export interface Dictionary {
             medium: string;
             dark: string;
         };
+        handpickOptions: {
+            standard: string;
+            specialty: string;
+            premium: string;
+        };
         newBadge: string;
     };
     feeSimulator: {
@@ -171,6 +176,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
                 medium: '中煎り (15%)',
                 dark: '深煎り (20%)',
             },
+            handpickOptions: {
+                standard: 'プレミアム・コモディティ (10%)',
+                specialty: 'スペシャルティ (5%)',
+                premium: 'トップ・オブ・トップ (1%)',
+            },
             newBadge: 'New',
         },
         feeSimulator: {
@@ -307,6 +317,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
                 light: 'Light Roast (10%)',
                 medium: 'Medium Roast (15%)',
                 dark: 'Dark Roast (20%)',
+            },
+            handpickOptions: {
+                standard: 'Premium/Commodity (10%)',
+                specialty: 'Specialty (5%)',
+                premium: 'Top of Top (1%)',
             },
             newBadge: 'New',
         },

@@ -69,11 +69,20 @@ export const GlobalSettingsForm: React.FC<GlobalSettingsFormProps> = ({ settings
                     <label className="block text-xs font-medium text-slate-500 mb-1">
                         {t.globalSettings.handpickLoss}
                     </label>
-                    <NumberInput
-                        value={settings.handpickLossRate}
-                        onChange={(v) => handleChange('handpickLossRate', v)}
-                        className="w-full text-sm p-2 border border-slate-200 rounded-md text-slate-900"
-                    />
+                    <div className="relative">
+                        <select
+                            value={settings.handpickLossRate}
+                            onChange={(e) => handleChange('handpickLossRate', Number(e.target.value))}
+                            className="w-full text-sm p-2 border border-slate-200 rounded-md text-slate-900 appearance-none bg-white"
+                        >
+                            <option value={10}>{t.globalSettings.handpickOptions.standard}</option>
+                            <option value={5}>{t.globalSettings.handpickOptions.specialty}</option>
+                            <option value={1}>{t.globalSettings.handpickOptions.premium}</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Utility Cost */}
