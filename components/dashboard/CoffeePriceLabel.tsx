@@ -65,11 +65,7 @@ export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery
         }
     };
 
-    const openList = () => {
-        // データ一覧を別ウィンドウで表示 (簡易的な実装)
-        const jsonTab = window.open("", "_blank");
-        jsonTab?.document.write("<pre>" + JSON.stringify(products, null, 2) + "</pre>");
-    };
+
 
     return (
         <div className="space-y-4 border p-4 rounded bg-slate-50 mt-4">
@@ -93,7 +89,7 @@ export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery
             {/* 推奨価格の提案 */}
             {recommendedPrice !== null && (
                 <div className="bg-white p-4 border rounded shadow-sm text-center">
-                    <p className="text-slate-500 text-xs mb-1">市場中央値価格 (推奨)</p>
+                    <p className="text-slate-500 text-xs mb-1">他ショップの中央値(参考)</p>
                     <div className="text-2xl font-bold text-slate-800">
                         ¥{recommendedPrice.toLocaleString()} <span className="text-sm font-normal text-slate-500">/ 100g</span>
                     </div>
@@ -101,12 +97,7 @@ export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery
                         対象データ数: {products.length}件
                     </p>
 
-                    <button
-                        onClick={openList}
-                        className="text-blue-500 text-xs underline mt-2 hover:text-blue-700 block mx-auto"
-                    >
-                        詳細リストを確認 (別タブ)
-                    </button>
+
 
                 </div>
             )}
