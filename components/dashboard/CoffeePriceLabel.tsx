@@ -47,10 +47,14 @@ export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery
             setProducts(list);
 
             if (list.length > 0) {
-                // 平均単価(100gあたり)を計算
-                const total = list.reduce((sum, item) => sum + item.unit_price, 0);
-                const avg = Math.round(total / list.length);
-                setRecommendedPrice(avg);
+                // 中央値(median)を計算
+                const sortedPrices = list.map(item => item.unit_price).sort((a, b) => a - b);
+                const mid = Math.floor(sortedPrices.length / 2);
+                const median = sortedPrices.length % 2 !== 0
+                    ? sortedPrices[mid]
+                    : (sortedPrices[mid - 1] + sortedPrices[mid]) / 2;
+
+                setRecommendedPrice(Math.round(median));
             } else {
                 setRecommendedPrice(null);
             }
@@ -90,7 +94,7 @@ export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery
             {/* 推奨価格の提案 */}
             {recommendedPrice !== null && (
                 <div className="bg-white p-4 border rounded shadow-sm text-center">
-                    <p className="text-slate-500 text-xs mb-1">市場平均価格 (推奨)</p>
+                    <p className="text-slate-500 text-xs mb-1">市場中央値価格 (推奨)</p>
                     <div className="text-2xl font-bold text-slate-800">
                         ¥{recommendedPrice.toLocaleString()} <span className="text-sm font-normal text-slate-500">/ 100g</span>
                     </div>
