@@ -4,6 +4,7 @@ import React from 'react';
 import { Bean, PriceInputMode } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { NumberInput } from '../ui/NumberInput';
+import { CoffeePriceLabel } from './CoffeePriceLabel';
 
 interface BeanConfigFormProps {
     beans: Bean[];
@@ -16,6 +17,35 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
     const { t } = useLanguage();
     const activeBean = beans.find(b => b.id === activeBeanId) || beans[0];
 
+    const currentPriceMode = activeBean.priceInputMode || 'active_total';
+
+    const handleApplyRecommendedPrice = (pricePer100g: number) => {
+        const pricePerKg = pricePer100g * 10;
+
+        if (currentPriceMode === 'active_total') {
+            // Apply as total price (unit price * weight)
+            // If weight is 0, we can't really set a total sensible price unless we assume 1kg?
+            // Let's assume user wants to update the unit price primarily.
+            // But 'active_total' mode primarily tracks purchasePrice.
+            // We should update enteredUnitPrice regardless, and calc total based on weight.
+            const weight = activeBean.purchaseWeightKg > 0 ? activeBean.purchaseWeightKg : 1;
+            const newTotal = pricePerKg * weight;
+
+            // If weight was 0, should we set it to 1? Maybe not, just set price.
+            onUpdateBean(activeBeanId, {
+                purchasePrice: newTotal,
+                enteredUnitPrice: pricePerKg // Keep track of unit price too
+            });
+        } else {
+            // mode is active_per_kg
+            const newTotal = pricePerKg * (activeBean.purchaseWeightKg > 0 ? activeBean.purchaseWeightKg : 0);
+            onUpdateBean(activeBeanId, {
+                enteredUnitPrice: pricePerKg,
+                purchasePrice: newTotal
+            });
+        }
+    };
+
     const handlePriceModeChange = (mode: PriceInputMode) => {
         if (mode === 'active_per_kg') {
             const currentUnit = activeBean.purchaseWeightKg > 0
@@ -27,7 +57,7 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
         }
     };
 
-    const currentPriceMode = activeBean.priceInputMode || 'active_total';
+    // currentPriceMode is already declared above
 
     const displayPrice = currentPriceMode === 'active_total'
         ? activeBean.purchasePrice
@@ -64,8 +94,8 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
                         key={bean.id}
                         onClick={() => onSelectBean(bean.id)}
                         className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${bean.id === activeBeanId
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                             }`}
                     >
                         {bean.name || `Bean ${idx + 1}`}
@@ -84,6 +114,11 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
                         placeholder={t.beanConfig.namePlaceholder}
                         value={activeBean.name}
                         onChange={(e) => onUpdateBean(activeBeanId, { name: e.target.value })}
+                    />
+
+                    <CoffeePriceLabel
+                        initialQuery={activeBean.name}
+                        onApplyPrice={handleApplyRecommendedPrice}
                     />
                 </div>
 
