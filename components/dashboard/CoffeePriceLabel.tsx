@@ -39,7 +39,7 @@ export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery
         setSearched(true);
         try {
             // Python APIをコール
-            const res = await fetch(`http://localhost:8000/search?q=${query}`);
+            const res = await fetch(`https://coffee-price-ai.vercel.app/search?q=${query}`);
             const data = await res.json();
             const list: Product[] = data.products || [];
 
