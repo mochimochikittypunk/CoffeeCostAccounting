@@ -14,10 +14,9 @@ type Product = {
 
 interface CoffeePriceLabelProps {
     initialQuery?: string;
-    onApplyPrice: (pricePer100g: number) => void;
 }
 
-export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery = '', onApplyPrice }) => {
+export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery = '' }) => {
     const [query, setQuery] = useState(initialQuery);
     const [products, setProducts] = useState<Product[]>([]);
     const [recommendedPrice, setRecommendedPrice] = useState<number | null>(null);
@@ -109,12 +108,6 @@ export const CoffeePriceLabel: React.FC<CoffeePriceLabelProps> = ({ initialQuery
                         詳細リストを確認 (別タブ)
                     </button>
 
-                    <button
-                        onClick={() => onApplyPrice(recommendedPrice)}
-                        className="mt-3 bg-emerald-500 hover:bg-emerald-600 text-white w-full py-2 rounded text-sm font-bold transition-colors"
-                    >
-                        この価格を適用する
-                    </button>
                 </div>
             )}
 

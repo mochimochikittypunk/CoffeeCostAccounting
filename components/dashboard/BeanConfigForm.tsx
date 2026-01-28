@@ -19,32 +19,7 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
 
     const currentPriceMode = activeBean.priceInputMode || 'active_total';
 
-    const handleApplyRecommendedPrice = (pricePer100g: number) => {
-        const pricePerKg = pricePer100g * 10;
 
-        if (currentPriceMode === 'active_total') {
-            // Apply as total price (unit price * weight)
-            // If weight is 0, we can't really set a total sensible price unless we assume 1kg?
-            // Let's assume user wants to update the unit price primarily.
-            // But 'active_total' mode primarily tracks purchasePrice.
-            // We should update enteredUnitPrice regardless, and calc total based on weight.
-            const weight = activeBean.purchaseWeightKg > 0 ? activeBean.purchaseWeightKg : 1;
-            const newTotal = pricePerKg * weight;
-
-            // If weight was 0, should we set it to 1? Maybe not, just set price.
-            onUpdateBean(activeBeanId, {
-                purchasePrice: newTotal,
-                enteredUnitPrice: pricePerKg // Keep track of unit price too
-            });
-        } else {
-            // mode is active_per_kg
-            const newTotal = pricePerKg * (activeBean.purchaseWeightKg > 0 ? activeBean.purchaseWeightKg : 0);
-            onUpdateBean(activeBeanId, {
-                enteredUnitPrice: pricePerKg,
-                purchasePrice: newTotal
-            });
-        }
-    };
 
     const handlePriceModeChange = (mode: PriceInputMode) => {
         if (mode === 'active_per_kg') {
@@ -118,7 +93,6 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
 
                     <CoffeePriceLabel
                         initialQuery={activeBean.name}
-                        onApplyPrice={handleApplyRecommendedPrice}
                     />
                 </div>
 
