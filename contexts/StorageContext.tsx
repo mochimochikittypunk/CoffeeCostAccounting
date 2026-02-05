@@ -273,392 +273,407 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
                     })));
                 }
 
-            })
-                    );
-await Promise.all(migrationPromises);
-
-// Re-fetch to get generate IDs
-const { data: newData } = await supabase.from('inventory').select('*');
-if (newData) {
-    setInventory(newData.map(dbToLocal));
-}
-                } else if (remoteInventory && remoteInventory.length > 0) {
-    // Normal case: Use remote data
-    setInventory(remoteInventory.map(dbToLocal));
-}
-
-setIsSupabaseConnected(true);
-console.log('Supabase Connected');
             } catch (err: any) {
-    console.error('Supabase Sync Error:', err);
-    setIsSupabaseConnected(false);
-}
+                console.error('Supabase Sync Error:', err);
+                setIsSupabaseConnected(false);
+            }
         };
 
-syncWithSupabase();
-    }, [user, isHydrated, getToken]); // Removed 'inventory' dependency to prevent loop
+        syncWithSupabase();
+    }, [user, isHydrated, getToken]);
 
-// 3. Persistence (Local Storage specific - maintain for settings/beans)
-// Note: Inventory is now strictly Supabase-only, so we don't save it to localStorage anymore.
+    // Update User Profile Function
+    const updateUserProfile = useCallback(async (updates: Partial<UserProfile>) => {
+        if (!user || !isSupabaseConnected) return;
 
-useEffect(() => {
-    if (!isHydrated) return;
-    try {
-        localStorage.setItem(STORAGE_KEYS.BEANS, JSON.stringify(beans));
-    } catch (e) {
-        console.warn('Failed to save beans to localStorage:', e);
-    }
-}, [beans, isHydrated]);
+        // Optimistic Update
+        setUserProfile(prev => prev ? { ...prev, ...updates } : null);
 
-useEffect(() => {
-    if (!isHydrated) return;
-    try {
-        localStorage.setItem(STORAGE_KEYS.BLEND, JSON.stringify(blendRecipe));
-    } catch (e) {
-        console.warn('Failed to save blend to localStorage:', e);
-    }
-}, [blendRecipe, isHydrated]);
-
-useEffect(() => {
-    if (!isHydrated) return;
-    try {
-        localStorage.setItem(STORAGE_KEYS.GLOBAL_SETTINGS, JSON.stringify(globalSettings));
-    } catch (e) {
-        console.warn('Failed to save global settings to localStorage:', e);
-    }
-}, [globalSettings, isHydrated]);
-
-useEffect(() => {
-    if (!isHydrated) return;
-    try {
-        localStorage.setItem(STORAGE_KEYS.FEE_SETTINGS, JSON.stringify(feeSettings));
-    } catch (e) {
-        console.warn('Failed to save fee settings to localStorage:', e);
-    }
-}, [feeSettings, isHydrated]);
-
-// Note: Inventory History is now session-only or server-synced (future), so we don't save it to localStorage for security.
-/*
-useEffect(() => {
-    if (!isHydrated) return;
-    try {
-        localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(inventoryHistory));
-    } catch (e) {
-        console.warn('Failed to save inventory history to localStorage:', e);
-    }
-}, [inventoryHistory, isHydrated]);
-*/
-
-useEffect(() => {
-    if (!isHydrated) return;
-    try {
-        localStorage.setItem(STORAGE_KEYS.SET_PRODUCT, JSON.stringify(setProduct));
-    } catch (e) {
-        console.warn('Failed to save set product to localStorage:', e);
-    }
-}, [setProduct, isHydrated]);
-
-// Helper to add log
-const addLog = useCallback((
-    type: InventoryOperationLog['type'],
-    item: InventoryItem,
-    amountDelta: number,
-    relatedLogIds: string[] = []
-) => {
-    const newLog: InventoryOperationLog = {
-        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date().toISOString(),
-        type,
-        itemId: item.id,
-        itemName: item.name,
-        amountDelta,
-        relatedLogIds
-    };
-    setInventoryHistory(prev => [newLog, ...prev].slice(0, 50));
-}, []);
-
-// Operations
-const addInventoryItem = useCallback(async (item: Omit<InventoryItem, 'id' | 'registeredAt'>) => {
-    // Optimistic update locally
-    const tempId = `temp-${Date.now()}`;
-    const newItem: InventoryItem = {
-        ...item,
-        id: tempId,
-        registeredAt: new Date().toISOString(),
-    };
-    setInventory(prev => [...prev, newItem]);
-
-    // Log locally first for responsiveness
-    const tempLog: InventoryOperationLog = {
-        id: `log-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        type: 'ADD',
-        itemId: tempId,
-        itemName: newItem.name,
-        amountDelta: newItem.stockWeightKg
-    };
-    setInventoryHistory(prev => [tempLog, ...prev]);
-
-    if (user && isSupabaseConnected) {
         try {
             const token = await getToken({ template: 'supabase' });
             const supabase = createSupabaseClient(token);
 
-            // 1. Insert Item
-            const { data, error } = await supabase
-                .from('inventory')
-                .insert({ ...localToDb(item), user_id: user.id })
-                .select()
-                .single();
+            const dbUpdates: Record<string, string | undefined> = {};
+            if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
+            if (updates.shopName !== undefined) dbUpdates.shop_name = updates.shopName;
+            if (updates.roasterMachine !== undefined) dbUpdates.roaster_machine = updates.roasterMachine;
+            if (updates.roasterSize !== undefined) dbUpdates.roaster_size = updates.roasterSize;
 
-            if (error) throw error;
+            if (Object.keys(dbUpdates).length > 0) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update(dbUpdates)
+                    .eq('user_id', user.id);
 
-            if (data) {
-                const savedItem = dbToLocal(data);
-
-                // Replace temp item with real one
-                setInventory(prev => prev.map(i => i.id === tempId ? savedItem : i));
-
-                // 2. Log History to Supabase
-                await supabase.from('inventory_history').insert({
-                    user_id: user.id,
-                    inventory_item_id: savedItem.id,
-                    item_name: savedItem.name,
-                    type: 'ADD',
-                    amount_delta: savedItem.stockWeightKg
-                });
+                if (error) throw error;
             }
         } catch (err) {
-            console.error('Failed to add to Supabase', err);
-            // Revert optimistic update? Or show error? 
-            // For now, allow it to remain local-only until refreshed if erratic.
+            console.error('Failed to update profile:', err);
+            // Could revert optimistic update here if needed
         }
-    }
-}, [user, isSupabaseConnected, getToken]);
+    }, [user, isSupabaseConnected, getToken]);
 
-const updateInventoryItem = useCallback(async (id: string, updates: Partial<InventoryItem>) => {
-    setInventory(prev => prev.map(item =>
-        item.id === id ? { ...item, ...updates } : item
-    ));
+    // 3. Persistence (Local Storage specific - maintain for settings/beans)
+    // Note: Inventory is now strictly Supabase-only, so we don't save it to localStorage anymore.
 
-    if (user && isSupabaseConnected && !id.startsWith('temp-')) {
+    useEffect(() => {
+        if (!isHydrated) return;
         try {
-            const token = await getToken({ template: 'supabase' });
-            const supabase = createSupabaseClient(token);
-            await supabase
-                .from('inventory')
-                .update(localToDb(updates))
-                .eq('id', id);
-        } catch (err) {
-            console.error('Failed to update Supabase', err);
+            localStorage.setItem(STORAGE_KEYS.BEANS, JSON.stringify(beans));
+        } catch (e) {
+            console.warn('Failed to save beans to localStorage:', e);
         }
-    }
-}, [user, isSupabaseConnected, getToken]);
+    }, [beans, isHydrated]);
 
-const consumeInventory = useCallback(async (id: string, amountKg: number) => {
-    const targetItem = inventory.find(i => i.id === id);
-    if (!targetItem) return;
-
-    const newStock = Math.max(0, targetItem.stockWeightKg - amountKg);
-    const actualConsumed = targetItem.stockWeightKg - newStock;
-
-    let ingredientsToReduce: { id: string; amount: number }[] = [];
-
-    if (targetItem.composition && targetItem.composition.length > 0) {
-        ingredientsToReduce = targetItem.composition.map(comp => {
-            let matchedInventoryId = comp.inventoryItemId;
-            if (!matchedInventoryId) {
-                const matchedItem = inventory.find(i => i.name === comp.name);
-                if (matchedItem) matchedInventoryId = matchedItem.id;
-            }
-            if (!matchedInventoryId) return null;
-            return {
-                id: matchedInventoryId,
-                amount: amountKg * (comp.ratio / 100)
-            };
-        }).filter((ing): ing is { id: string; amount: number } => !!ing);
-    }
-
-    const nextInventory = inventory.map(item => {
-        if (item.id === id) return { ...item, stockWeightKg: newStock };
-        const ingredientReduction = ingredientsToReduce.find(i => i.id === item.id);
-        if (ingredientReduction) {
-            const reducedStock = Math.max(0, item.stockWeightKg - ingredientReduction.amount);
-            return { ...item, stockWeightKg: Math.round(reducedStock * 1000) / 1000 };
+    useEffect(() => {
+        if (!isHydrated) return;
+        try {
+            localStorage.setItem(STORAGE_KEYS.BLEND, JSON.stringify(blendRecipe));
+        } catch (e) {
+            console.warn('Failed to save blend to localStorage:', e);
         }
-        return item;
-    });
+    }, [blendRecipe, isHydrated]);
 
-    const mainLogId = `log-${Date.now()}-${id}`;
-    const relatedLogs: InventoryOperationLog[] = ingredientsToReduce.map(ing => {
-        const ingItem = inventory.find(i => i.id === ing.id);
-        return {
-            id: `log-${Date.now()}-${ing.id}`,
+    useEffect(() => {
+        if (!isHydrated) return;
+        try {
+            localStorage.setItem(STORAGE_KEYS.GLOBAL_SETTINGS, JSON.stringify(globalSettings));
+        } catch (e) {
+            console.warn('Failed to save global settings to localStorage:', e);
+        }
+    }, [globalSettings, isHydrated]);
+
+    useEffect(() => {
+        if (!isHydrated) return;
+        try {
+            localStorage.setItem(STORAGE_KEYS.FEE_SETTINGS, JSON.stringify(feeSettings));
+        } catch (e) {
+            console.warn('Failed to save fee settings to localStorage:', e);
+        }
+    }, [feeSettings, isHydrated]);
+
+    // Note: Inventory History is now session-only or server-synced (future), so we don't save it to localStorage for security.
+    /*
+    useEffect(() => {
+        if (!isHydrated) return;
+        try {
+            localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(inventoryHistory));
+        } catch (e) {
+            console.warn('Failed to save inventory history to localStorage:', e);
+        }
+    }, [inventoryHistory, isHydrated]);
+    */
+
+    useEffect(() => {
+        if (!isHydrated) return;
+        try {
+            localStorage.setItem(STORAGE_KEYS.SET_PRODUCT, JSON.stringify(setProduct));
+        } catch (e) {
+            console.warn('Failed to save set product to localStorage:', e);
+        }
+    }, [setProduct, isHydrated]);
+
+    // Helper to add log
+    const addLog = useCallback((
+        type: InventoryOperationLog['type'],
+        item: InventoryItem,
+        amountDelta: number,
+        relatedLogIds: string[] = []
+    ) => {
+        const newLog: InventoryOperationLog = {
+            id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             timestamp: new Date().toISOString(),
-            type: 'CONSUME',
-            itemId: ing.id,
-            itemName: ingItem?.name || 'Unknown',
-            amountDelta: -ing.amount,
-            relatedLogIds: [mainLogId]
+            type,
+            itemId: item.id,
+            itemName: item.name,
+            amountDelta,
+            relatedLogIds
         };
-    });
+        setInventoryHistory(prev => [newLog, ...prev].slice(0, 50));
+    }, []);
 
-    const mainLog: InventoryOperationLog = {
-        id: mainLogId,
-        timestamp: new Date().toISOString(),
-        type: 'CONSUME',
-        itemId: targetItem.id,
-        itemName: targetItem.name,
-        amountDelta: -actualConsumed,
-        relatedLogIds: relatedLogs.map(l => l.id)
-    };
+    // Operations
+    const addInventoryItem = useCallback(async (item: Omit<InventoryItem, 'id' | 'registeredAt'>) => {
+        // Optimistic update locally
+        const tempId = `temp-${Date.now()}`;
+        const newItem: InventoryItem = {
+            ...item,
+            id: tempId,
+            registeredAt: new Date().toISOString(),
+        };
+        setInventory(prev => [...prev, newItem]);
 
-    setInventory(nextInventory);
-    setInventoryHistory(prev => [mainLog, ...relatedLogs, ...prev].slice(0, 50));
-
-    if (user && isSupabaseConnected) {
-        try {
-            const token = await getToken({ template: 'supabase' });
-            const supabase = createSupabaseClient(token);
-
-            // 1. Update Stock in DB
-            const p1 = supabase.from('inventory').update({ stock_weight_kg: newStock }).eq('id', id);
-            const p2 = ingredientsToReduce.map(ing => {
-                const targetIng = nextInventory.find(i => i.id === ing.id);
-                if (targetIng) {
-                    return supabase.from('inventory').update({ stock_weight_kg: targetIng.stockWeightKg }).eq('id', ing.id);
-                }
-            });
-
-            await Promise.all([p1, ...p2]);
-
-            // 2. Insert Log to Supabase
-            // Main log
-            await supabase.from('inventory_history').insert({
-                user_id: user.id,
-                inventory_item_id: id,
-                item_name: targetItem.name,
-                type: 'CONSUME',
-                amount_delta: -actualConsumed
-            });
-
-            // Related logs (ingredients)
-            if (relatedLogs.length > 0) {
-                await Promise.all(relatedLogs.map(log =>
-                    supabase.from('inventory_history').insert({
-                        user_id: user.id,
-                        inventory_item_id: log.itemId,
-                        item_name: log.itemName,
-                        type: 'CONSUME',
-                        amount_delta: log.amountDelta
-                    })
-                ));
-            }
-
-        } catch (err) {
-            console.error('Failed to sync consumption to Supabase', err);
-        }
-    }
-}, [inventory, user, isSupabaseConnected, getToken]);
-
-const removeInventoryItem = useCallback(async (id: string) => {
-    const target = inventory.find(i => i.id === id);
-
-    // Optimistic
-    setInventory(current => current.filter(item => item.id !== id));
-    if (target) {
-        const log: InventoryOperationLog = {
+        // Log locally first for responsiveness
+        const tempLog: InventoryOperationLog = {
             id: `log-${Date.now()}`,
             timestamp: new Date().toISOString(),
-            type: 'DELETE',
-            itemId: id,
-            itemName: target.name,
-            amountDelta: -target.stockWeightKg
+            type: 'ADD',
+            itemId: tempId,
+            itemName: newItem.name,
+            amountDelta: newItem.stockWeightKg
         };
-        setInventoryHistory(prev => [log, ...prev].slice(0, 50));
-    }
+        setInventoryHistory(prev => [tempLog, ...prev]);
 
-    if (user && isSupabaseConnected && !id.startsWith('temp-')) {
-        try {
-            const token = await getToken({ template: 'supabase' });
-            const supabase = createSupabaseClient(token);
-            await supabase.from('inventory').delete().eq('id', id);
+        if (user && isSupabaseConnected) {
+            try {
+                const token = await getToken({ template: 'supabase' });
+                const supabase = createSupabaseClient(token);
 
-            if (target) {
+                // 1. Insert Item
+                const { data, error } = await supabase
+                    .from('inventory')
+                    .insert({ ...localToDb(item), user_id: user.id })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    const savedItem = dbToLocal(data);
+
+                    // Replace temp item with real one
+                    setInventory(prev => prev.map(i => i.id === tempId ? savedItem : i));
+
+                    // 2. Log History to Supabase
+                    await supabase.from('inventory_history').insert({
+                        user_id: user.id,
+                        inventory_item_id: savedItem.id,
+                        item_name: savedItem.name,
+                        type: 'ADD',
+                        amount_delta: savedItem.stockWeightKg
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to add to Supabase', err);
+                // Revert optimistic update? Or show error? 
+                // For now, allow it to remain local-only until refreshed if erratic.
+            }
+        }
+    }, [user, isSupabaseConnected, getToken]);
+
+    const updateInventoryItem = useCallback(async (id: string, updates: Partial<InventoryItem>) => {
+        setInventory(prev => prev.map(item =>
+            item.id === id ? { ...item, ...updates } : item
+        ));
+
+        if (user && isSupabaseConnected && !id.startsWith('temp-')) {
+            try {
+                const token = await getToken({ template: 'supabase' });
+                const supabase = createSupabaseClient(token);
+                await supabase
+                    .from('inventory')
+                    .update(localToDb(updates))
+                    .eq('id', id);
+            } catch (err) {
+                console.error('Failed to update Supabase', err);
+            }
+        }
+    }, [user, isSupabaseConnected, getToken]);
+
+    const consumeInventory = useCallback(async (id: string, amountKg: number) => {
+        const targetItem = inventory.find(i => i.id === id);
+        if (!targetItem) return;
+
+        const newStock = Math.max(0, targetItem.stockWeightKg - amountKg);
+        const actualConsumed = targetItem.stockWeightKg - newStock;
+
+        let ingredientsToReduce: { id: string; amount: number }[] = [];
+
+        if (targetItem.composition && targetItem.composition.length > 0) {
+            ingredientsToReduce = targetItem.composition.map(comp => {
+                let matchedInventoryId = comp.inventoryItemId;
+                if (!matchedInventoryId) {
+                    const matchedItem = inventory.find(i => i.name === comp.name);
+                    if (matchedItem) matchedInventoryId = matchedItem.id;
+                }
+                if (!matchedInventoryId) return null;
+                return {
+                    id: matchedInventoryId,
+                    amount: amountKg * (comp.ratio / 100)
+                };
+            }).filter((ing): ing is { id: string; amount: number } => !!ing);
+        }
+
+        const nextInventory = inventory.map(item => {
+            if (item.id === id) return { ...item, stockWeightKg: newStock };
+            const ingredientReduction = ingredientsToReduce.find(i => i.id === item.id);
+            if (ingredientReduction) {
+                const reducedStock = Math.max(0, item.stockWeightKg - ingredientReduction.amount);
+                return { ...item, stockWeightKg: Math.round(reducedStock * 1000) / 1000 };
+            }
+            return item;
+        });
+
+        const mainLogId = `log-${Date.now()}-${id}`;
+        const relatedLogs: InventoryOperationLog[] = ingredientsToReduce.map(ing => {
+            const ingItem = inventory.find(i => i.id === ing.id);
+            return {
+                id: `log-${Date.now()}-${ing.id}`,
+                timestamp: new Date().toISOString(),
+                type: 'CONSUME',
+                itemId: ing.id,
+                itemName: ingItem?.name || 'Unknown',
+                amountDelta: -ing.amount,
+                relatedLogIds: [mainLogId]
+            };
+        });
+
+        const mainLog: InventoryOperationLog = {
+            id: mainLogId,
+            timestamp: new Date().toISOString(),
+            type: 'CONSUME',
+            itemId: targetItem.id,
+            itemName: targetItem.name,
+            amountDelta: -actualConsumed,
+            relatedLogIds: relatedLogs.map(l => l.id)
+        };
+
+        setInventory(nextInventory);
+        setInventoryHistory(prev => [mainLog, ...relatedLogs, ...prev].slice(0, 50));
+
+        if (user && isSupabaseConnected) {
+            try {
+                const token = await getToken({ template: 'supabase' });
+                const supabase = createSupabaseClient(token);
+
+                // 1. Update Stock in DB
+                const p1 = supabase.from('inventory').update({ stock_weight_kg: newStock }).eq('id', id);
+                const p2 = ingredientsToReduce.map(ing => {
+                    const targetIng = nextInventory.find(i => i.id === ing.id);
+                    if (targetIng) {
+                        return supabase.from('inventory').update({ stock_weight_kg: targetIng.stockWeightKg }).eq('id', ing.id);
+                    }
+                });
+
+                await Promise.all([p1, ...p2]);
+
+                // 2. Insert Log to Supabase
+                // Main log
                 await supabase.from('inventory_history').insert({
                     user_id: user.id,
-                    inventory_item_id: null, // Setting null as item is deleted, or keep it? Schema has "on delete set null"
-                    item_name: target.name, // Keep name for record
-                    type: 'DELETE',
-                    amount_delta: -target.stockWeightKg
+                    inventory_item_id: id,
+                    item_name: targetItem.name,
+                    type: 'CONSUME',
+                    amount_delta: -actualConsumed
                 });
+
+                // Related logs (ingredients)
+                if (relatedLogs.length > 0) {
+                    await Promise.all(relatedLogs.map(log =>
+                        supabase.from('inventory_history').insert({
+                            user_id: user.id,
+                            inventory_item_id: log.itemId,
+                            item_name: log.itemName,
+                            type: 'CONSUME',
+                            amount_delta: log.amountDelta
+                        })
+                    ));
+                }
+
+            } catch (err) {
+                console.error('Failed to sync consumption to Supabase', err);
             }
-        } catch (err) {
-            console.error('Failed to delete from Supabase', err);
         }
-    }
-}, [inventory, user, isSupabaseConnected, getToken]);
+    }, [inventory, user, isSupabaseConnected, getToken]);
 
-const undoOperation = useCallback((logId: string) => {
-    const logToUndo = inventoryHistory.find(l => l.id === logId);
-    if (!logToUndo) return;
+    const removeInventoryItem = useCallback(async (id: string) => {
+        const target = inventory.find(i => i.id === id);
 
-    const logsToUndoIds = new Set<string>([logId]);
-    if (logToUndo.relatedLogIds) logToUndo.relatedLogIds.forEach(id => logsToUndoIds.add(id));
-    const logsToUndo = inventoryHistory.filter(l => logsToUndoIds.has(l.id));
+        // Optimistic
+        setInventory(current => current.filter(item => item.id !== id));
+        if (target) {
+            const log: InventoryOperationLog = {
+                id: `log-${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                type: 'DELETE',
+                itemId: id,
+                itemName: target.name,
+                amountDelta: -target.stockWeightKg
+            };
+            setInventoryHistory(prev => [log, ...prev].slice(0, 50));
+        }
 
-    setInventory(currentInventory => {
-        const nextInv = currentInventory.map(item => {
-            const relevantLogs = logsToUndo.filter(l => l.itemId === item.id);
-            if (relevantLogs.length === 0) return item;
-            let newStock = item.stockWeightKg;
-            relevantLogs.forEach(log => newStock -= log.amountDelta);
-            newStock = Math.max(0, newStock);
+        if (user && isSupabaseConnected && !id.startsWith('temp-')) {
+            try {
+                const token = await getToken({ template: 'supabase' });
+                const supabase = createSupabaseClient(token);
+                await supabase.from('inventory').delete().eq('id', id);
 
-            if (user && isSupabaseConnected && !item.id.startsWith('temp-')) {
-                const tokenPromise = getToken({ template: 'supabase' });
-                tokenPromise.then(token => {
-                    const supabase = createSupabaseClient(token);
-                    supabase.from('inventory').update({ stock_weight_kg: Math.round(newStock * 1000) / 1000 }).eq('id', item.id).then();
-                });
+                if (target) {
+                    await supabase.from('inventory_history').insert({
+                        user_id: user.id,
+                        inventory_item_id: null, // Setting null as item is deleted, or keep it? Schema has "on delete set null"
+                        item_name: target.name, // Keep name for record
+                        type: 'DELETE',
+                        amount_delta: -target.stockWeightKg
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to delete from Supabase', err);
             }
+        }
+    }, [inventory, user, isSupabaseConnected, getToken]);
 
-            return { ...item, stockWeightKg: Math.round(newStock * 1000) / 1000 };
+    const undoOperation = useCallback((logId: string) => {
+        const logToUndo = inventoryHistory.find(l => l.id === logId);
+        if (!logToUndo) return;
+
+        const logsToUndoIds = new Set<string>([logId]);
+        if (logToUndo.relatedLogIds) logToUndo.relatedLogIds.forEach(id => logsToUndoIds.add(id));
+        const logsToUndo = inventoryHistory.filter(l => logsToUndoIds.has(l.id));
+
+        setInventory(currentInventory => {
+            const nextInv = currentInventory.map(item => {
+                const relevantLogs = logsToUndo.filter(l => l.itemId === item.id);
+                if (relevantLogs.length === 0) return item;
+                let newStock = item.stockWeightKg;
+                relevantLogs.forEach(log => newStock -= log.amountDelta);
+                newStock = Math.max(0, newStock);
+
+                if (user && isSupabaseConnected && !item.id.startsWith('temp-')) {
+                    const tokenPromise = getToken({ template: 'supabase' });
+                    tokenPromise.then(token => {
+                        const supabase = createSupabaseClient(token);
+                        supabase.from('inventory').update({ stock_weight_kg: Math.round(newStock * 1000) / 1000 }).eq('id', item.id).then();
+                    });
+                }
+
+                return { ...item, stockWeightKg: Math.round(newStock * 1000) / 1000 };
+            });
+            return nextInv;
         });
-        return nextInv;
-    });
 
-    setInventoryHistory(currentHistory => currentHistory.filter(l => !logsToUndoIds.has(l.id)));
-}, [inventoryHistory, user, isSupabaseConnected, getToken]);
+        setInventoryHistory(currentHistory => currentHistory.filter(l => !logsToUndoIds.has(l.id)));
+    }, [inventoryHistory, user, isSupabaseConnected, getToken]);
 
-return (
-    <StorageContext.Provider value={{
-        beans, setBeans,
-        activeBeanId, setActiveBeanId,
-        blendRecipe, setBlendRecipe,
-        setProduct, setSetProduct,
-        globalSettings, setGlobalSettings,
-        feeSettings, setFeeSettings,
-        inventory,
-        addInventoryItem,
-        updateInventoryItem,
-        consumeInventory,
-        removeInventoryItem,
+    return (
+        <StorageContext.Provider value={{
+            beans, setBeans,
+            activeBeanId, setActiveBeanId,
+            blendRecipe, setBlendRecipe,
+            setProduct, setSetProduct,
+            globalSettings, setGlobalSettings,
+            feeSettings, setFeeSettings,
+            inventory,
+            addInventoryItem,
+            updateInventoryItem,
+            consumeInventory,
+            removeInventoryItem,
 
-        // History
-        inventoryHistory,
-        undoOperation,
+            // History
+            inventoryHistory,
+            undoOperation,
 
-        // Profile
-        userProfile,
-        updateUserProfile,
-        credits,
-        isHydrated,
-        isSupabaseConnected
-    }}>
-        {children}
-    </StorageContext.Provider>
-);
+            // Profile
+            userProfile,
+            updateUserProfile,
+            credits,
+            isHydrated,
+            isSupabaseConnected
+        }}>
+            {children}
+        </StorageContext.Provider>
+    );
 };
 
 export const useStorage = () => {
