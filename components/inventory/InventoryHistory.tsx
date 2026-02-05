@@ -57,7 +57,7 @@ export const InventoryHistory: React.FC = () => {
                                     <span>{getLabel(log.type)}</span>
                                     <span>•</span>
                                     <span>{new Date(log.timestamp).toLocaleString(locale === 'ja' ? 'ja-JP' : 'en-US')}</span>
-                                    {log.relatedItemIds && log.relatedItemIds.length > 0 && (
+                                    {log.relatedLogIds && log.relatedLogIds.length > 0 && (
                                         <>
                                             <span>•</span>
                                             <span className="text-slate-400">Linked</span>
