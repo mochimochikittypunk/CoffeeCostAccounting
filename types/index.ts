@@ -54,6 +54,7 @@ export interface BlendIngredient {
     name: string;
     pricePerKg: number;
     ratio: number; // Percentage (0-100)
+    inventoryItemId?: string; // Link to source inventory (added for smart consumption)
 }
 
 export interface BlendRecipe {
@@ -63,6 +64,38 @@ export interface BlendRecipe {
     totalBatchWeightKg: number; // How much of this blend to simulate (e.g. 5kg)
     targetRateRetail: number;
     targetRateWholesale: number;
+}
+
+// Set Product Types
+export interface SetProductItem {
+    id: string;
+    name: string;
+    inventoryItemId?: string; // Link to source inventory
+    quantity: number; // g
+    retailPricePerKg: number; // List price per kg
+    costPricePerKg: number; // Cost per kg
+}
+
+export interface SetProduct {
+    id: string;
+    name: string;
+    items: SetProductItem[];
+    sellingPrice: number; // Total selling price for the set
+    plannedQuantity: number; // How many sets to sell/produce
+
+    // Overhead Settings (Override Global)
+    packagingCost: number; // JPY
+    utilityCost: number; // JPY
+    isTaxable: boolean;
+    taxRate: number; // Percent override
+    roastLossRate: number; // %
+    handpickLossRate: number; // %
+
+    // Fee Settings (Override FeeSettings)
+    shippingCost: number; // Store burdened shipping cost
+    platformFeeRate: number; // %
+    platformFeeFixed: number; // JPY
+    platformName: string; // e.g., 'BASE', 'Shopify'
 }
 
 export interface GlobalSettings {
@@ -93,4 +126,34 @@ export interface SimulationResult {
     breakevenUnits: number;
 
     isSafeMargin: boolean;
+}
+
+// Inventory Management Types
+// Inventory Management Types
+export interface InventoryItem {
+    id: string;
+    name: string;
+    stockWeightKg: number;      // 在庫量 (kg, 0.1単位)
+    retailPrice: number;         // 販売価格(小売) / 100gあたり
+    wholesalePrice: number;      // 販売価格(卸売) / kgあたり
+    costPricePerKg: number;      // 仕入れ原価 / kgあたり
+    registeredAt: string;        // ISO date string (localStorage用)
+    description?: string;        // Optional description
+
+    // For blends: link to ingredient inventory items
+    composition?: {
+        inventoryItemId: string; // ID of the source inventory item
+        name: string;            // Snapshot of name for display
+        ratio: number;           // Percentage (0-100)
+    }[];
+}
+
+export interface InventoryOperationLog {
+    id: string;
+    timestamp: string;
+    type: 'ADD' | 'CONSUME' | 'UPDATE' | 'DELETE';
+    itemId: string;
+    itemName: string;
+    amountDelta: number; // Positive for Add, Negative for Consume
+    relatedLogIds?: string[]; // IDs of related logs (for cascade undo)
 }

@@ -4,8 +4,9 @@ import './globals.css';
 import { LanguageProvider } from '../contexts/LanguageContext';
 import { StorageProvider } from '../contexts/StorageContext';
 import { Header } from '../components/layout/Header';
-import { NavigationTabs } from '../components/layout/NavigationTabs'; // Import
-
+import { NavigationTabs } from '../components/layout/NavigationTabs';
+import { ClerkProvider } from '@clerk/nextjs'; // Import ClerkProvider
+import { jaJP } from '@clerk/localizations';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -20,16 +21,18 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="ja">
-            <body className={inter.className}>
-                <LanguageProvider>
-                    <StorageProvider>
-                        <Header />
-                        <NavigationTabs />
-                        {children}
-                    </StorageProvider>
-                </LanguageProvider>
-            </body>
-        </html>
+        <ClerkProvider localization={jaJP}>
+            <html lang="ja">
+                <body className={inter.className}>
+                    <LanguageProvider>
+                        <StorageProvider>
+                            <Header />
+                            <NavigationTabs />
+                            {children}
+                        </StorageProvider>
+                    </LanguageProvider>
+                </body>
+            </html>
+        </ClerkProvider>
     );
 }

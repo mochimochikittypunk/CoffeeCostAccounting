@@ -6,11 +6,18 @@ import { usePathname } from 'next/navigation';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 
+import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+
+import { useStorage } from '../../contexts/StorageContext';
+
 export const NavigationTabs: React.FC = () => {
     const { t } = useLanguage();
+    const { credits } = useStorage();
     const pathname = usePathname();
 
     const isBlend = pathname === '/blend';
+    const isSet = pathname === '/set';
+    const isInventory = pathname === '/inventory';
 
     return (
         <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-10 w-full">
@@ -36,11 +43,45 @@ export const NavigationTabs: React.FC = () => {
                         >
                             🔄 {t.common.nav.blend}
                         </Link>
+                        <Link
+                            href="/set"
+                            className={`inline-flex items-center px-1 border-b-2 text-xs sm:text-sm font-medium h-full transition-colors ${isSet
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                        >
+                            🛍️ {t.common.nav.set}
+                        </Link>
+                        <Link
+                            href="/inventory"
+                            className={`inline-flex items-center px-1 border-b-2 text-xs sm:text-sm font-medium h-full transition-colors ${isInventory
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                        >
+                            📦 {t.common.nav.inventory || '在庫管理'}
+                        </Link>
                     </div>
 
-                    {/* Right: Language */}
-                    <div className="flex items-center">
+                    {/* Right: Language & Auth */}
+                    <div className="flex items-center gap-4">
                         <LanguageSwitcher />
+                        <div className="flex items-center">
+                            <SignedOut>
+                                <SignInButton mode="modal">
+                                    <button className="text-xs sm:text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-slate-50">
+                                        Sign In
+                                    </button>
+                                </SignInButton>
+                            </SignedOut>
+                            <SignedIn>
+                                <div className="text-sm font-bold text-slate-700 bg-amber-100 px-3 py-1 rounded-full mr-3 flex items-center">
+                                    <span className="mr-1">🪙</span>
+                                    {credits}
+                                </div>
+                                <UserButton afterSignOutUrl="/" />
+                            </SignedIn>
+                        </div>
                     </div>
                 </div>
             </div>

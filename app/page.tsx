@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Bean, SimulationResult } from '../types';
 import { calculateBeanMetrics } from '../utils/calculations';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -20,21 +20,45 @@ export default function HomePage() {
         beans, setBeans,
         activeBeanId, setActiveBeanId,
         globalSettings, setGlobalSettings,
-        feeSettings, setFeeSettings
+        feeSettings, setFeeSettings,
+        addInventoryItem
     } = useStorage();
+
+    const [addedToInventory, setAddedToInventory] = useState<string[]>([]);
 
     // --- Handlers ---
     const updateBean = (id: string, updates: Partial<Bean>) => {
         setBeans(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
     };
 
+    const handleAddToInventory = (bean: Bean, result: SimulationResult) => {
+        const costPerKg = bean.purchaseWeightKg > 0
+            ? bean.purchasePrice / bean.purchaseWeightKg
+            : 0;
+
+        addInventoryItem({
+            name: bean.name || 'Unnamed Bean',
+            stockWeightKg: bean.purchaseWeightKg,
+            retailPrice: result.retailPrice,
+            wholesalePrice: result.wholesalePrice * 10, // Convert 100g → kg
+            costPricePerKg: costPerKg,
+        });
+
+        setAddedToInventory(prev => [...prev, bean.id]);
+
+        // Reset after 3 seconds
+        setTimeout(() => {
+            setAddedToInventory(prev => prev.filter(id => id !== bean.id));
+        }, 3000);
+    };
+
     // --- Calculations ---
-    const results: (SimulationResult & { beanName: string })[] = beans
+    const results: (SimulationResult & { beanName: string; beanId: string })[] = beans
         .filter(b => b.purchasePrice > 0 && b.purchaseWeightKg > 0)
         .flatMap(bean => {
             const metrics = calculateBeanMetrics(bean, globalSettings, feeSettings);
             if (!metrics) return [];
-            return [{ ...metrics, beanName: bean.name || 'Unnamed Bean' }];
+            return [{ ...metrics, beanName: bean.name || 'Unnamed Bean', beanId: bean.id }];
         });
 
 
@@ -102,6 +126,30 @@ export default function HomePage() {
                             </div>
 
                             <ProfitTable results={results} unitG={globalSettings.salesUnitG} />
+
+                            {/* Add to Inventory Button for each result */}
+                            {results.length > 0 && (
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    {results.map(result => {
+                                        const bean = beans.find(b => b.id === result.beanId);
+                                        if (!bean) return null;
+                                        const isAdded = addedToInventory.includes(bean.id);
+                                        return (
+                                            <button
+                                                key={result.beanId}
+                                                onClick={() => handleAddToInventory(bean, result)}
+                                                disabled={isAdded}
+                                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${isAdded
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    }`}
+                                            >
+                                                {isAdded ? '✓ 在庫に追加済み' : `📦 ${result.beanName} を在庫に追加`}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </section>
 
                         {/* Advanced Function: Discount Simulator */}
@@ -118,3 +166,4 @@ export default function HomePage() {
         </div>
     );
 }
+

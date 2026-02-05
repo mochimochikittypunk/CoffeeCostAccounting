@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { BlendIngredient, BlendRecipe } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useStorage } from '../../contexts/StorageContext';
 import { NumberInput } from '../ui/NumberInput';
-import { Trash2, Plus, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, AlertTriangle, ChevronDown } from 'lucide-react';
 
 interface BlendRecipeFormProps {
     recipe: BlendRecipe;
@@ -22,16 +23,26 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
     onRemoveIngredient
 }) => {
     const { t } = useLanguage();
+    const { inventory } = useStorage();
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
     // Calculations
     const totalRatio = recipe.ingredients.reduce((sum, i) => sum + i.ratio, 0);
-    // Avg Cost = Sum(Price * (Ratio/100))
     const avgCostPerKg = recipe.ingredients.reduce((sum, i) => sum + (i.pricePerKg * (i.ratio / 100)), 0);
-
-    // Simulation Context
     const totalCost = avgCostPerKg * recipe.totalBatchWeightKg;
+    const isInvalidRatio = Math.abs(totalRatio - 100) > 0.1;
 
-    const isInvalidRatio = Math.abs(totalRatio - 100) > 0.1; // Allow small float error
+    const handleSelectFromInventory = (ingredientId: string, inventoryItemId: string) => {
+        const item = inventory.find(i => i.id === inventoryItemId);
+        if (item) {
+            onUpdateIngredient(ingredientId, {
+                name: item.name,
+                pricePerKg: item.costPricePerKg,
+                inventoryItemId: item.id // Save the link
+            });
+        }
+        setOpenDropdown(null);
+    };
 
     return (
         <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
@@ -72,12 +83,44 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
                     <div key={ingredient.id} className="flex gap-4 items-end bg-slate-50 p-3 rounded-lg border border-slate-100 relative group animate-in slide-in-from-top-1">
                         <div className="flex-grow">
                             <label className="text-xs font-medium text-slate-500 mb-1 block">{t.blendConfig.ingredientName} {index + 1}</label>
-                            <input
-                                type="text"
-                                className="w-full p-2 text-sm border border-slate-200 rounded-md"
-                                value={ingredient.name}
-                                onChange={(e) => onUpdateIngredient(ingredient.id, { name: e.target.value })}
-                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    className="w-full p-2 pr-8 text-sm border border-slate-200 rounded-md"
+                                    value={ingredient.name}
+                                    onChange={(e) => onUpdateIngredient(ingredient.id, { name: e.target.value })}
+                                    placeholder="豆の名前を入力または在庫から選択"
+                                />
+                                {inventory.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenDropdown(openDropdown === ingredient.id ? null : ingredient.id)}
+                                        className="absolute right-1 top-1 p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                        title="在庫から選択"
+                                    >
+                                        <ChevronDown size={18} />
+                                    </button>
+                                )}
+                                {/* Dropdown */}
+                                {openDropdown === ingredient.id && inventory.length > 0 && (
+                                    <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                        <div className="p-2 text-xs font-medium text-slate-500 border-b border-slate-100">
+                                            📦 在庫から選択
+                                        </div>
+                                        {inventory.map(item => (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                onClick={() => handleSelectFromInventory(ingredient.id, item.id)}
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex justify-between items-center"
+                                            >
+                                                <span className="text-slate-900">{item.name}</span>
+                                                <span className="text-slate-500 text-xs">¥{item.costPricePerKg.toLocaleString()}/kg • {item.stockWeightKg}kg</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="w-28">

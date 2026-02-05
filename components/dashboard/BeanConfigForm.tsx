@@ -1,10 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Bean, PriceInputMode } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useStorage } from '../../contexts/StorageContext';
 import { NumberInput } from '../ui/NumberInput';
 import { CoffeePriceLabel } from './CoffeePriceLabel';
+import { ChevronDown } from 'lucide-react';
 
 interface BeanConfigFormProps {
     beans: Bean[];
@@ -15,11 +17,11 @@ interface BeanConfigFormProps {
 
 export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBeanId, onSelectBean, onUpdateBean }) => {
     const { t } = useLanguage();
+    const { inventory } = useStorage();
+    const [showInventoryDropdown, setShowInventoryDropdown] = useState(false);
+
     const activeBean = beans.find(b => b.id === activeBeanId) || beans[0];
-
     const currentPriceMode = activeBean.priceInputMode || 'active_total';
-
-
 
     const handlePriceModeChange = (mode: PriceInputMode) => {
         if (mode === 'active_per_kg') {
@@ -31,8 +33,6 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
             onUpdateBean(activeBeanId, { priceInputMode: mode });
         }
     };
-
-    // currentPriceMode is already declared above
 
     const displayPrice = currentPriceMode === 'active_total'
         ? activeBean.purchasePrice
@@ -60,6 +60,20 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
         }
     };
 
+    const handleSelectFromInventory = (inventoryItemId: string) => {
+        const item = inventory.find(i => i.id === inventoryItemId);
+        if (item) {
+            // Auto-fill bean data from inventory item
+            onUpdateBean(activeBeanId, {
+                name: item.name,
+                purchaseWeightKg: item.stockWeightKg,
+                purchasePrice: item.costPricePerKg * item.stockWeightKg,
+                priceInputMode: 'active_total',
+            });
+        }
+        setShowInventoryDropdown(false);
+    };
+
     return (
         <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
             {/* Tabs */}
@@ -80,16 +94,49 @@ export const BeanConfigForm: React.FC<BeanConfigFormProps> = ({ beans, activeBea
 
             {/* Form Grid */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                {/* Name */}
+                {/* Name with Inventory Selector */}
                 <div className="md:col-span-12">
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t.beanConfig.nameLabel}</label>
-                    <input
-                        type="text"
-                        className="w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-900"
-                        placeholder={t.beanConfig.namePlaceholder}
-                        value={activeBean.name}
-                        onChange={(e) => onUpdateBean(activeBeanId, { name: e.target.value })}
-                    />
+                    <div className="relative">
+                        <input
+                            type="text"
+                            className="w-full p-2 pr-10 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-900"
+                            placeholder={t.beanConfig.namePlaceholder}
+                            value={activeBean.name}
+                            onChange={(e) => onUpdateBean(activeBeanId, { name: e.target.value })}
+                        />
+                        {inventory.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowInventoryDropdown(!showInventoryDropdown)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="在庫から選択"
+                            >
+                                <ChevronDown size={18} />
+                            </button>
+                        )}
+                        {/* Inventory Dropdown */}
+                        {showInventoryDropdown && inventory.length > 0 && (
+                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                <div className="p-2 text-xs font-medium text-slate-500 border-b border-slate-100">
+                                    📦 在庫から選択（名前・原価・重量を自動入力）
+                                </div>
+                                {inventory.map(item => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => handleSelectFromInventory(item.id)}
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex justify-between items-center"
+                                    >
+                                        <span className="text-slate-900">{item.name}</span>
+                                        <span className="text-slate-500 text-xs">
+                                            ¥{item.costPricePerKg.toLocaleString()}/kg • {item.stockWeightKg}kg
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     <CoffeePriceLabel
                         initialQuery={activeBean.name}
