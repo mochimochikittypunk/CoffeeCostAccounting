@@ -157,3 +157,14 @@ export interface InventoryOperationLog {
     amountDelta: number; // Positive for Add, Negative for Consume
     relatedLogIds?: string[]; // IDs of related logs (for cascade undo)
 }
+
+export interface UserProfile {
+    id: string;
+    userId: string;
+    credits: number;
+    displayName?: string;
+    shopName?: string;
+    roasterMachine?: string;
+    roasterSize?: string;
+    lastActiveAt?: string;
+}
