@@ -75,13 +75,20 @@ export const NavigationTabs: React.FC = () => {
                                 </SignInButton>
                             </SignedOut>
                             <SignedIn>
-                                <div className="text-sm font-bold text-slate-700 bg-amber-100 px-3 py-1 rounded-full mr-3 flex items-center">
-                                    <span className="mr-1">🪙</span>
-                                    {credits}
-                                </div>
-                                <UserButton afterSignOutUrl="/" />
+                                <span className="mr-1">🪙</span>
+                                {credits}
                             </SignedIn>
                         </div>
+                        <SignedIn>
+                            <Link
+                                href="/account"
+                                className="mr-3 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                title="アカウント設定"
+                            >
+                                ⚙️
+                            </Link>
+                            <UserButton />
+                        </SignedIn>
                     </div>
                 </div>
             </div>
