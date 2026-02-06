@@ -57,11 +57,16 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
 
         // Restore ingredients from composition
         const restoredIngredients: BlendIngredient[] = item.composition.map((comp, idx) => {
-            const sourceItem = inventory.find(i => i.id === comp.inventoryItemId);
+            // Use saved pricePerKg if available, otherwise try to get current price from inventory
+            const sourceItem = comp.inventoryItemId
+                ? inventory.find(i => i.id === comp.inventoryItemId)
+                : undefined;
+
             return {
                 id: `i-${Date.now()}-${idx}`,
                 name: comp.name,
-                pricePerKg: sourceItem?.costPricePerKg ?? 0,
+                // Priority: saved price > current inventory price > 0
+                pricePerKg: comp.pricePerKg ?? sourceItem?.costPricePerKg ?? 0,
                 ratio: comp.ratio,
                 inventoryItemId: comp.inventoryItemId
             };

@@ -74,11 +74,13 @@ export default function BlendPage() {
     const handleAddToInventory = () => {
         if (!metrics) return;
 
+        // Save ALL ingredients (including manually entered ones) for complete recipe restoration
         const composition = recipe.ingredients
-            .filter(i => i.inventoryItemId && i.ratio > 0)
+            .filter(i => i.ratio > 0)
             .map(i => ({
-                inventoryItemId: i.inventoryItemId!,
+                inventoryItemId: i.inventoryItemId, // May be undefined for manually entered beans
                 name: i.name,
+                pricePerKg: i.pricePerKg,
                 ratio: i.ratio
             }));
 

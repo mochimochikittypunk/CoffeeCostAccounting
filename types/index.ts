@@ -142,9 +142,10 @@ export interface InventoryItem {
 
     // For blends: link to ingredient inventory items
     composition?: {
-        inventoryItemId: string; // ID of the source inventory item
-        name: string;            // Snapshot of name for display
-        ratio: number;           // Percentage (0-100)
+        inventoryItemId?: string; // Optional: ID of the source inventory item
+        name: string;             // Snapshot of name for display
+        pricePerKg: number;       // Snapshot of price for restoration
+        ratio: number;            // Percentage (0-100)
     }[];
 }
 

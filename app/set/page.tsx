@@ -71,6 +71,7 @@ export default function SetProductPage() {
                 return {
                     inventoryItemId: i.inventoryItemId!,
                     name: i.name,
+                    pricePerKg: i.costPricePerKg,
                     ratio: totalQty > 0 ? (i.quantity / totalQty) * 100 : 0
                 };
             });
