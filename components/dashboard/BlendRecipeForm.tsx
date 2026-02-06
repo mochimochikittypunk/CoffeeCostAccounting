@@ -13,6 +13,7 @@ interface BlendRecipeFormProps {
     onUpdateIngredient: (id: string, updates: Partial<BlendIngredient>) => void;
     onAddIngredient: () => void;
     onRemoveIngredient: (id: string) => void;
+    onSetIngredients?: (ingredients: BlendIngredient[]) => void;
 }
 
 export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
@@ -20,11 +21,16 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
     onUpdateRecipe,
     onUpdateIngredient,
     onAddIngredient,
-    onRemoveIngredient
+    onRemoveIngredient,
+    onSetIngredients
 }) => {
     const { t } = useLanguage();
     const { inventory } = useStorage();
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+    const [showBlendDropdown, setShowBlendDropdown] = useState(false);
+
+    // Filter inventory for items with composition (blends only)
+    const blendInventoryItems = inventory.filter(item => item.composition && item.composition.length > 0);
 
     // Calculations
     const totalRatio = recipe.ingredients.reduce((sum, i) => sum + i.ratio, 0);
@@ -44,6 +50,35 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
         setOpenDropdown(null);
     };
 
+    // Handler to load full blend recipe from inventory
+    const handleLoadBlendFromInventory = (inventoryItemId: string) => {
+        const item = inventory.find(i => i.id === inventoryItemId);
+        if (!item || !item.composition || !onSetIngredients) return;
+
+        // Restore ingredients from composition
+        const restoredIngredients: BlendIngredient[] = item.composition.map((comp, idx) => {
+            const sourceItem = inventory.find(i => i.id === comp.inventoryItemId);
+            return {
+                id: `i-${Date.now()}-${idx}`,
+                name: comp.name,
+                pricePerKg: sourceItem?.costPricePerKg ?? 0,
+                ratio: comp.ratio,
+                inventoryItemId: comp.inventoryItemId
+            };
+        });
+
+        // Update recipe name and batch size
+        onUpdateRecipe({
+            name: item.name,
+            totalBatchWeightKg: item.stockWeightKg
+        });
+
+        // Update ingredients
+        onSetIngredients(restoredIngredients);
+
+        setShowBlendDropdown(false);
+    };
+
     return (
         <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -57,12 +92,46 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t.blendConfig.recipeName}</label>
-                    <input
-                        type="text"
-                        className="w-full p-2 border border-slate-300 rounded-md"
-                        value={recipe.name}
-                        onChange={(e) => onUpdateRecipe({ name: e.target.value })}
-                    />
+                    <div className="relative">
+                        <input
+                            type="text"
+                            className="w-full p-2 pr-10 border border-slate-300 rounded-md text-slate-900"
+                            value={recipe.name}
+                            onChange={(e) => onUpdateRecipe({ name: e.target.value })}
+                            placeholder="レシピ名を入力または在庫から選択"
+                        />
+                        {blendInventoryItems.length > 0 && onSetIngredients && (
+                            <button
+                                type="button"
+                                onClick={() => setShowBlendDropdown(!showBlendDropdown)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="在庫からブレンドを読み込み"
+                            >
+                                <ChevronDown size={18} />
+                            </button>
+                        )}
+                        {/* Blend Dropdown */}
+                        {showBlendDropdown && blendInventoryItems.length > 0 && (
+                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                <div className="p-2 text-xs font-medium text-slate-500 border-b border-slate-100">
+                                    ☕ 在庫からブレンドを読み込み（レシピを復元）
+                                </div>
+                                {blendInventoryItems.map(item => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => handleLoadBlendFromInventory(item.id)}
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex justify-between items-center"
+                                    >
+                                        <span className="text-slate-900">{item.name}</span>
+                                        <span className="text-slate-500 text-xs">
+                                            {item.composition?.length}種 • {item.stockWeightKg}kg
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t.blendConfig.batchSize}</label>

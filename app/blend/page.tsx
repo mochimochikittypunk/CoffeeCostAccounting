@@ -124,6 +124,7 @@ export default function BlendPage() {
                                     onUpdateIngredient={updateIngredient}
                                     onAddIngredient={addIngredient}
                                     onRemoveIngredient={removeIngredient}
+                                    onSetIngredients={(ingredients) => setRecipe(prev => ({ ...prev, ingredients }))}
                                 />
                             </section>
 
