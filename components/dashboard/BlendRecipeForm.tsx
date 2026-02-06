@@ -100,7 +100,7 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
                             onChange={(e) => onUpdateRecipe({ name: e.target.value })}
                             placeholder="レシピ名を入力または在庫から選択"
                         />
-                        {blendInventoryItems.length > 0 && onSetIngredients && (
+                        {onSetIngredients && (
                             <button
                                 type="button"
                                 onClick={() => setShowBlendDropdown(!showBlendDropdown)}
@@ -111,24 +111,30 @@ export const BlendRecipeForm: React.FC<BlendRecipeFormProps> = ({
                             </button>
                         )}
                         {/* Blend Dropdown */}
-                        {showBlendDropdown && blendInventoryItems.length > 0 && (
+                        {showBlendDropdown && onSetIngredients && (
                             <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                                 <div className="p-2 text-xs font-medium text-slate-500 border-b border-slate-100">
                                     ☕ 在庫からブレンドを読み込み（レシピを復元）
                                 </div>
-                                {blendInventoryItems.map(item => (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        onClick={() => handleLoadBlendFromInventory(item.id)}
-                                        className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex justify-between items-center"
-                                    >
-                                        <span className="text-slate-900">{item.name}</span>
-                                        <span className="text-slate-500 text-xs">
-                                            {item.composition?.length}種 • {item.stockWeightKg}kg
-                                        </span>
-                                    </button>
-                                ))}
+                                {blendInventoryItems.length > 0 ? (
+                                    blendInventoryItems.map(item => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => handleLoadBlendFromInventory(item.id)}
+                                            className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex justify-between items-center"
+                                        >
+                                            <span className="text-slate-900">{item.name}</span>
+                                            <span className="text-slate-500 text-xs">
+                                                {item.composition?.length}種 • {item.stockWeightKg}kg
+                                            </span>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="px-3 py-4 text-center text-sm text-slate-400">
+                                        保存されたブレンドはありません
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
