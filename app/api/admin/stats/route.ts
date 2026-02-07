@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Admin emails from environment
@@ -20,14 +20,18 @@ function getSupabaseAdmin() {
 export async function GET(request: NextRequest) {
     try {
         // Get the authenticated user
-        const { userId, sessionClaims } = await auth();
+        const { userId } = await auth();
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        // Get user details from Clerk to check email
+        const client = await clerkClient();
+        const user = await client.users.getUser(userId);
+        const userEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase();
+
         // Check if user is admin by email
-        const userEmail = (sessionClaims?.email as string)?.toLowerCase();
         if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
             return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
         }
