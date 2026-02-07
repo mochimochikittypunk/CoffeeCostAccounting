@@ -59,6 +59,9 @@ interface StorageContextType {
     // Hydration status
     isHydrated: boolean;
     isSupabaseConnected: boolean;
+
+    // Feature Usage Tracking
+    logFeatureUsage: (featureName: 'single_origin' | 'blend' | 'set' | 'inventory') => Promise<void>;
 }
 
 const StorageContext = createContext<StorageContextType | undefined>(undefined);
@@ -310,6 +313,24 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
         } catch (err) {
             console.error('Failed to update profile:', err);
             // Could revert optimistic update here if needed
+        }
+    }, [user, isSupabaseConnected, getToken]);
+
+    // Log feature usage to Supabase
+    const logFeatureUsage = useCallback(async (featureName: 'single_origin' | 'blend' | 'set' | 'inventory') => {
+        if (!user || !isSupabaseConnected) return;
+
+        try {
+            const token = await getToken({ template: 'supabase' });
+            const supabase = createSupabaseClient(token);
+
+            await supabase.from('feature_usage').insert({
+                user_id: user.id,
+                feature_name: featureName
+            });
+        } catch (err) {
+            // Silently fail - feature tracking is non-critical
+            console.warn('Failed to log feature usage:', err);
         }
     }, [user, isSupabaseConnected, getToken]);
 
@@ -669,7 +690,8 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
             updateUserProfile,
             credits,
             isHydrated,
-            isSupabaseConnected
+            isSupabaseConnected,
+            logFeatureUsage
         }}>
             {children}
         </StorageContext.Provider>

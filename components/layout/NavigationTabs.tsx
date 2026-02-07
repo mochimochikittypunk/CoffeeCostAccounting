@@ -6,18 +6,27 @@ import { usePathname } from 'next/navigation';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 
-import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
 
 import { useStorage } from '../../contexts/StorageContext';
+
+// Admin email check
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
 
 export const NavigationTabs: React.FC = () => {
     const { t } = useLanguage();
     const { credits } = useStorage();
     const pathname = usePathname();
+    const { user } = useUser();
 
     const isBlend = pathname === '/blend';
     const isSet = pathname === '/set';
     const isInventory = pathname === '/inventory';
+    const isAdmin = pathname === '/admin';
+
+    // Check if current user is admin
+    const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+    const isAdminUser = userEmail && ADMIN_EMAILS.includes(userEmail);
 
     return (
         <div className="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-10 w-full">
@@ -61,6 +70,18 @@ export const NavigationTabs: React.FC = () => {
                         >
                             📦 {t.common.nav.inventory || '在庫管理'}
                         </Link>
+                        {/* Admin Link - Only shown for admin users */}
+                        {isAdminUser && (
+                            <Link
+                                href="/admin"
+                                className={`inline-flex items-center px-1 border-b-2 text-xs sm:text-sm font-medium h-full transition-colors ${isAdmin
+                                    ? 'border-purple-500 text-purple-600'
+                                    : 'border-transparent text-slate-500 hover:text-purple-600 hover:border-purple-300'
+                                    }`}
+                            >
+                                👑 管理画面
+                            </Link>
+                        )}
                     </div>
 
                     {/* Right: Language & Auth */}
