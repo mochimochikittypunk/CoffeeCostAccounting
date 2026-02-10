@@ -3,100 +3,49 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Star } from 'lucide-react';
+import { useStorage } from '@/contexts/StorageContext';
 
 type SurveyState = 'hidden' | 'open' | 'submitting' | 'done';
 
+const SURVEY_DELAY_MS = 60 * 1000; // 1 minute
+
 export const ExitSurveyModal: React.FC = () => {
     const { user } = useUser();
+    const { userProfile } = useStorage();
     const [state, setState] = useState<SurveyState>('hidden');
     const [rating, setRating] = useState<number>(0);
     const [hoveredStar, setHoveredStar] = useState<number>(0);
     const [hasSubmitted, setHasSubmitted] = useState(false);
 
-    // Use refs to avoid stale closures in event handlers
-    const stateRef = useRef<SurveyState>('hidden');
-    const hasSubmittedRef = useRef(false);
-    const userRef = useRef(user);
-    const showingDialogRef = useRef(false);
-
-    // Keep refs in sync with state
-    useEffect(() => { stateRef.current = state; }, [state]);
-    useEffect(() => { hasSubmittedRef.current = hasSubmitted; }, [hasSubmitted]);
-    useEffect(() => { userRef.current = user; }, [user]);
-
-    // Check if already submitted this session
+    // Check if already submitted this session or recently
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const submitted = sessionStorage.getItem('survey_submitted');
             if (submitted) {
                 setHasSubmitted(true);
-                hasSubmittedRef.current = true;
             }
         }
     }, []);
 
-    // Register beforeunload ONCE (no state dependencies to avoid re-registration)
-    // Uses refs to read current state without stale closure issues
+    // Timer trigger: show survey after 1 minute if conditions met
     useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            // Only block if user is logged in, hasn't submitted, and modal is hidden
-            if (!userRef.current || hasSubmittedRef.current) return;
-            if (stateRef.current !== 'hidden') return;
+        if (!user || hasSubmitted) return;
 
-            // Mark that we're showing the native dialog
-            showingDialogRef.current = true;
+        // Skip if user has already rated (check profile)
+        if (userProfile?.latest_rating) {
+            setHasSubmitted(true);
+            return;
+        }
 
-            // CRITICAL: Both are needed for cross-browser compatibility
-            e.preventDefault();
-            e.returnValue = ''; // Required for Chrome/Safari
-        };
-
-        // After native dialog, if user clicks "Stay", focus returns to page
-        const handleFocus = () => {
-            if (showingDialogRef.current) {
-                showingDialogRef.current = false;
-                // Small delay to ensure DOM is ready
-                setTimeout(() => {
-                    setState('open');
-                }, 100);
+        const timer = setTimeout(() => {
+            // Re-check submission state before showing
+            if (!hasSubmitted && !sessionStorage.getItem('survey_submitted')) {
+                setState('open');
             }
-        };
+        }, SURVEY_DELAY_MS);
 
-        // Also detect via visibility change (more reliable in some browsers)
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && showingDialogRef.current) {
-                showingDialogRef.current = false;
-                setTimeout(() => {
-                    setState('open');
-                }, 100);
-            }
-        };
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        window.addEventListener('focus', handleFocus);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            window.removeEventListener('focus', handleFocus);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
-    }, []); // Empty deps — registered once, uses refs for current values
-
-    // Safari pagehide fallback: send rating data if user closes without completing
-    useEffect(() => {
-        const handlePageHide = () => {
-            if (hasSubmittedRef.current) return;
-            const currentRating = rating;
-            if (currentRating > 0) {
-                const data = JSON.stringify({ rating: currentRating });
-                navigator.sendBeacon('/api/survey', new Blob([data], { type: 'application/json' }));
-            }
-        };
-
-        window.addEventListener('pagehide', handlePageHide);
-        return () => window.removeEventListener('pagehide', handlePageHide);
-    }, [rating]);
+        return () => clearTimeout(timer);
+    }, [user, hasSubmitted, userProfile]);
 
     const handleSubmit = useCallback(async () => {
         if (rating === 0 || !user) return;
@@ -112,14 +61,10 @@ export const ExitSurveyModal: React.FC = () => {
             if (res.ok) {
                 setState('done');
                 setHasSubmitted(true);
-                hasSubmittedRef.current = true;
                 sessionStorage.setItem('survey_submitted', 'true');
                 setTimeout(() => {
                     setState('hidden');
-                    stateRef.current = 'hidden';
-                    // Try to close (works if page was opened by script)
-                    window.close();
-                }, 1500);
+                }, 2000); // Close after 2 seconds
             } else {
                 console.error('Survey submission failed');
                 setState('open');
@@ -130,7 +75,7 @@ export const ExitSurveyModal: React.FC = () => {
         }
     }, [rating, user]);
 
-    // Completely invisible when hidden — no UI elements whatsoever
+    // Completely invisible when hidden or submitted
     if (!user || hasSubmitted || state === 'hidden') return null;
 
     return (
@@ -180,7 +125,7 @@ export const ExitSurveyModal: React.FC = () => {
                                 fontSize: '13px',
                                 marginTop: '10px',
                             }}>
-                                まもなくページを閉じます...
+                                今後ともよろしくお願いします
                             </p>
                         </div>
                     ) : (
@@ -194,9 +139,9 @@ export const ExitSurveyModal: React.FC = () => {
                                 marginBottom: '8px',
                                 lineHeight: 1.5,
                             }}>
-                                今回のアプリ体験は
+                                アプリのご利用
                                 <br />
-                                どうでしたか？
+                                ありがとうございます！
                             </p>
 
                             <p style={{
@@ -204,6 +149,7 @@ export const ExitSurveyModal: React.FC = () => {
                                 fontSize: '13px',
                                 marginBottom: '28px',
                             }}>
+                                使い心地はいかがですか？<br />
                                 タップして評価してください
                             </p>
 
@@ -277,6 +223,29 @@ export const ExitSurveyModal: React.FC = () => {
                                 }}
                             >
                                 {state === 'submitting' ? '送信中...' : '評価を送信する'}
+                            </button>
+
+                            {/* Skip / Close Button */}
+                            <button
+                                onClick={() => {
+                                    setState('hidden');
+                                    // Mark as "submitted" for this session so it doesn't pop up again immediately
+                                    // Optionally could use a different key for "skipped" to re-show later
+                                    sessionStorage.setItem('survey_submitted', 'true');
+                                    setHasSubmitted(true);
+                                }}
+                                style={{
+                                    marginTop: '16px',
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#6b7280',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    padding: '8px 16px',
+                                    textDecoration: 'underline',
+                                }}
+                            >
+                                閉じる
                             </button>
                         </>
                     )}

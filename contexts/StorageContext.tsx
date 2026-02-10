@@ -236,7 +236,9 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
                         shopName: profileResult.shop_name,
                         roasterMachine: profileResult.roaster_machine,
                         roasterSize: profileResult.roaster_size,
-                        lastActiveAt: profileResult.last_active_at
+                        lastActiveAt: profileResult.last_active_at,
+                        latest_rating: profileResult.latest_rating,
+                        reminder_sent_at: profileResult.reminder_sent_at
                     });
 
                     // Update last_active_at
@@ -296,11 +298,13 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
             const token = await getToken({ template: 'supabase' });
             const supabase = createSupabaseClient(token);
 
-            const dbUpdates: Record<string, string | undefined> = {};
+            const dbUpdates: Record<string, string | number | undefined> = {};
             if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
             if (updates.shopName !== undefined) dbUpdates.shop_name = updates.shopName;
             if (updates.roasterMachine !== undefined) dbUpdates.roaster_machine = updates.roasterMachine;
             if (updates.roasterSize !== undefined) dbUpdates.roaster_size = updates.roasterSize;
+            if (updates.latest_rating !== undefined) dbUpdates.latest_rating = updates.latest_rating;
+            if (updates.reminder_sent_at !== undefined) dbUpdates.reminder_sent_at = updates.reminder_sent_at;
 
             if (Object.keys(dbUpdates).length > 0) {
                 const { error } = await supabase

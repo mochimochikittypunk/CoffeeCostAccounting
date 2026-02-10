@@ -168,4 +168,7 @@ export interface UserProfile {
     roasterMachine?: string;
     roasterSize?: string;
     lastActiveAt?: string;
+
+    latest_rating?: number;
+    reminder_sent_at?: string;
 }
