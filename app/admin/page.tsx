@@ -178,7 +178,7 @@ export default function AdminPage() {
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">焙煎機</th>
                                             <th className="text-center px-4 py-3 font-medium text-slate-600">アクセス回数</th>
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">最終ログイン</th>
-                                            <th className="text-center px-4 py-3 font-medium text-slate-600">リマインド</th>
+                                            <th className="text-center px-4 py-3 font-medium text-slate-600">メールリマインド</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -232,8 +232,8 @@ export default function AdminPage() {
                                                                     onClick={() => handleSendReminder(profile.user_id)}
                                                                     disabled={!canSend || status === 'sending'}
                                                                     className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${canSend && status !== 'sending'
-                                                                            ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-pointer'
-                                                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                        ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-pointer'
+                                                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                                                         }`}
                                                                 >
                                                                     <Mail size={12} />
