@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         }
 
         const client = await clerkClient();
-        const user = await client.users.getUser(userId);
+        const user = await client.users.getUser(userId!);
 
         const userEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase();
 
