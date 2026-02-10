@@ -60,7 +60,11 @@ export async function POST(request: NextRequest) {
 
         const userEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase();
 
-        if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
+        if (!userEmail) {
+            return NextResponse.json({ error: 'Forbidden: No email found' }, { status: 403 });
+        }
+
+        if (!ADMIN_EMAILS.includes(userEmail)) {
             return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
         }
 
