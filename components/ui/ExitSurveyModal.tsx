@@ -27,25 +27,42 @@ export const ExitSurveyModal: React.FC = () => {
         }
     }, []);
 
-    // Timer trigger: show survey after 1 minute if conditions met
-    useEffect(() => {
-        if (!user || hasSubmitted) return;
+    // Check for cooldown (1 week)
+    const checkCooldown = useCallback(() => {
+        if (typeof window === 'undefined') return false;
 
-        // Skip if user has already rated (check profile)
-        if (userProfile?.latest_rating) {
-            setHasSubmitted(true);
-            return;
+        // 1. Check if user already rated (Global permanent check from DB)
+        if (userProfile?.latest_rating) return false;
+
+        // 2. Check local cooldown (1 week)
+        const lastInteraction = localStorage.getItem('survey_last_interaction');
+        if (lastInteraction) {
+            const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+            const timeSince = Date.now() - parseInt(lastInteraction, 10);
+            if (timeSince < ONE_WEEK_MS) {
+                return false;
+            }
         }
+        return true;
+    }, [userProfile]);
 
-        const timer = setTimeout(() => {
-            // Re-check submission state before showing
-            if (!hasSubmitted && !sessionStorage.getItem('survey_submitted')) {
+    const setCooldown = () => {
+        localStorage.setItem('survey_last_interaction', Date.now().toString());
+    };
+
+    // Event Listener for Inventory Add
+    useEffect(() => {
+        if (!user) return;
+
+        const handleTrigger = () => {
+            if (checkCooldown()) {
                 setState('open');
             }
-        }, SURVEY_DELAY_MS);
+        };
 
-        return () => clearTimeout(timer);
-    }, [user, hasSubmitted, userProfile]);
+        window.addEventListener('survey-trigger', handleTrigger);
+        return () => window.removeEventListener('survey-trigger', handleTrigger);
+    }, [user, checkCooldown]);
 
     const handleSubmit = useCallback(async () => {
         if (rating === 0 || !user) return;
@@ -61,7 +78,7 @@ export const ExitSurveyModal: React.FC = () => {
             if (res.ok) {
                 setState('done');
                 setHasSubmitted(true);
-                sessionStorage.setItem('survey_submitted', 'true');
+                setCooldown(); // Set cooldown
                 setTimeout(() => {
                     setState('hidden');
                 }, 2000); // Close after 2 seconds
@@ -229,9 +246,7 @@ export const ExitSurveyModal: React.FC = () => {
                             <button
                                 onClick={() => {
                                     setState('hidden');
-                                    // Mark as "submitted" for this session so it doesn't pop up again immediately
-                                    // Optionally could use a different key for "skipped" to re-show later
-                                    sessionStorage.setItem('survey_submitted', 'true');
+                                    setCooldown(); // Set cooldown
                                     setHasSubmitted(true);
                                 }}
                                 style={{

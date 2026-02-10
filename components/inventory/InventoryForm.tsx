@@ -41,6 +41,11 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onComplete }) => {
             costPricePerKg: 3000,
         });
 
+        // Trigger survey modal (if conditions met)
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('survey-trigger'));
+        }
+
         onComplete?.();
     };
 
