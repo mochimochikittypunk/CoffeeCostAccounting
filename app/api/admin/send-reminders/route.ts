@@ -59,75 +59,72 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
         }
 
-        // 2. Find inactive users (5+ days since last_active_at, no reminder in the last 30 days)
-        const supabaseAdmin = getSupabaseAdmin();
-        const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        // 2. Get target user_id from request body
+        const body = await request.json();
+        const { targetUserId } = body;
 
-        const { data: inactiveUsers, error: fetchError } = await supabaseAdmin
+        if (!targetUserId) {
+            return NextResponse.json({ error: 'targetUserId is required' }, { status: 400 });
+        }
+
+        const supabaseAdmin = getSupabaseAdmin();
+
+        // 3. Get target user profile
+        const { data: profile, error: fetchError } = await supabaseAdmin
             .from('profiles')
             .select('user_id, email, reminder_sent_at')
-            .lt('last_active_at', fiveDaysAgo)
-            .not('email', 'is', null)
-            .or(`reminder_sent_at.is.null,reminder_sent_at.lt.${thirtyDaysAgo}`);
+            .eq('user_id', targetUserId)
+            .single();
 
-        if (fetchError) {
-            console.error('Fetch inactive users error:', fetchError);
-            return NextResponse.json({ error: 'Failed to fetch inactive users' }, { status: 500 });
+        if (fetchError || !profile) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        if (!inactiveUsers || inactiveUsers.length === 0) {
-            return NextResponse.json({ message: 'No inactive users found', sent: 0 });
+        if (!profile.email) {
+            return NextResponse.json({ error: 'User has no email address' }, { status: 400 });
         }
 
-        // 3. Send reminder emails
+        // 4. Check monthly limit (30 days)
+        if (profile.reminder_sent_at) {
+            const lastSent = new Date(profile.reminder_sent_at);
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            if (lastSent > thirtyDaysAgo) {
+                const nextDate = new Date(lastSent.getTime() + 30 * 24 * 60 * 60 * 1000);
+                return NextResponse.json({
+                    error: `月1回の送信制限中です。次回送信可能: ${nextDate.toLocaleDateString('ja-JP')}`,
+                    nextAvailable: nextDate.toISOString(),
+                }, { status: 429 });
+            }
+        }
+
+        // 5. Send email
         const resend = getResend();
-        const results: { email: string; status: 'sent' | 'skipped' | 'error'; error?: string }[] = [];
 
-        for (const profile of inactiveUsers) {
-            if (!profile.email) {
-                results.push({ email: 'unknown', status: 'skipped', error: 'No email' });
-                continue;
-            }
-
-            try {
-                if (resend) {
-                    // Real send
-                    await resend.emails.send({
-                        from: process.env.RESEND_FROM_EMAIL || 'Coffee Profit Simulator <noreply@resend.dev>',
-                        to: profile.email,
-                        subject: REMINDER_SUBJECT,
-                        html: REMINDER_HTML,
-                    });
-                } else {
-                    // Dry run mode - log only
-                    console.log(`[DRY RUN] Would send reminder to: ${profile.email}`);
-                }
-
-                // 4. Update reminder_sent_at to prevent re-sending
-                await supabaseAdmin
-                    .from('profiles')
-                    .update({ reminder_sent_at: new Date().toISOString() })
-                    .eq('user_id', profile.user_id);
-
-                results.push({ email: profile.email, status: 'sent' });
-            } catch (emailErr: any) {
-                console.error(`Failed to send to ${profile.email}:`, emailErr);
-                results.push({ email: profile.email, status: 'error', error: emailErr.message });
-            }
+        if (resend) {
+            await resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL || 'Coffee Profit Simulator <noreply@resend.dev>',
+                to: profile.email,
+                subject: REMINDER_SUBJECT,
+                html: REMINDER_HTML,
+            });
+        } else {
+            console.log(`[DRY RUN] Would send reminder to: ${profile.email}`);
         }
 
-        const sentCount = results.filter(r => r.status === 'sent').length;
+        // 6. Update reminder_sent_at
+        await supabaseAdmin
+            .from('profiles')
+            .update({ reminder_sent_at: new Date().toISOString() })
+            .eq('user_id', targetUserId);
 
         return NextResponse.json({
-            message: `Processed ${inactiveUsers.length} users`,
-            sent: sentCount,
+            success: true,
+            email: profile.email,
             dryRun: !resend,
-            results,
         });
 
     } catch (error) {
-        console.error('Send reminders API error:', error);
+        console.error('Send reminder API error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

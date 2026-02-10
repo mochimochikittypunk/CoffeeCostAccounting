@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser, RedirectToSignIn } from '@clerk/nextjs';
+import { Mail } from 'lucide-react';
 
 // Admin email check
 const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
@@ -17,6 +18,7 @@ interface ProfileData {
     access_count: number | null;
     last_active_at: string | null;
     credits: number;
+    reminder_sent_at: string | null;
 }
 
 interface FeatureStats {
@@ -30,6 +32,8 @@ export default function AdminPage() {
     const [featureStats, setFeatureStats] = useState<FeatureStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [sendingReminder, setSendingReminder] = useState<Record<string, 'sending' | 'sent' | 'error'>>({});
+    const [reminderMessage, setReminderMessage] = useState<Record<string, string>>({});
 
     // Check admin access
     const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
@@ -40,7 +44,6 @@ export default function AdminPage() {
 
         const fetchData = async () => {
             try {
-                // For now, we'll use the API route to fetch admin data
                 const response = await fetch('/api/admin/stats');
                 if (!response.ok) {
                     throw new Error('Failed to fetch admin data');
@@ -57,6 +60,50 @@ export default function AdminPage() {
 
         fetchData();
     }, [isLoaded, isAdmin]);
+
+    const handleSendReminder = async (targetUserId: string) => {
+        setSendingReminder(prev => ({ ...prev, [targetUserId]: 'sending' }));
+        setReminderMessage(prev => ({ ...prev, [targetUserId]: '' }));
+
+        try {
+            const response = await fetch('/api/admin/send-reminders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setSendingReminder(prev => ({ ...prev, [targetUserId]: 'sent' }));
+                setReminderMessage(prev => ({
+                    ...prev,
+                    [targetUserId]: data.dryRun ? '✅ ドライラン送信完了' : '✅ 送信完了'
+                }));
+                // Update the profile's reminder_sent_at locally
+                setProfiles(prev => prev.map(p =>
+                    p.user_id === targetUserId
+                        ? { ...p, reminder_sent_at: new Date().toISOString() }
+                        : p
+                ));
+            } else {
+                setSendingReminder(prev => ({ ...prev, [targetUserId]: 'error' }));
+                setReminderMessage(prev => ({ ...prev, [targetUserId]: `❌ ${data.error}` }));
+            }
+        } catch (err) {
+            setSendingReminder(prev => ({ ...prev, [targetUserId]: 'error' }));
+            setReminderMessage(prev => ({ ...prev, [targetUserId]: '❌ 送信エラー' }));
+        }
+    };
+
+    // Check if reminder can be sent (30-day cooldown)
+    const canSendReminder = (profile: ProfileData): boolean => {
+        if (!profile.email) return false;
+        if (!profile.reminder_sent_at) return true;
+        const lastSent = new Date(profile.reminder_sent_at);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        return lastSent < thirtyDaysAgo;
+    };
 
     if (!isLoaded) {
         return <div className="p-8 text-center text-slate-500">Loading...</div>;
@@ -131,46 +178,81 @@ export default function AdminPage() {
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">焙煎機</th>
                                             <th className="text-center px-4 py-3 font-medium text-slate-600">アクセス回数</th>
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">最終ログイン</th>
+                                            <th className="text-center px-4 py-3 font-medium text-slate-600">リマインド</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                        {profiles.map((profile) => (
-                                            <tr key={profile.id} className="hover:bg-slate-50">
-                                                <td className="px-4 py-3">
-                                                    <div className="font-medium text-slate-800">
-                                                        {profile.display_name || '(未設定)'}
-                                                    </div>
-                                                    <div className="text-xs text-slate-400">
-                                                        {profile.email || profile.user_id}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-600">
-                                                    {profile.shop_name || '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-600">
-                                                    {profile.roaster_machine ? (
-                                                        <span>
-                                                            {profile.roaster_machine}
-                                                            {profile.roaster_size && ` (${profile.roaster_size})`}
+                                        {profiles.map((profile) => {
+                                            const canSend = canSendReminder(profile);
+                                            const status = sendingReminder[profile.user_id];
+                                            const message = reminderMessage[profile.user_id];
+
+                                            return (
+                                                <tr key={profile.id} className="hover:bg-slate-50">
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-medium text-slate-800">
+                                                            {profile.display_name || '(未設定)'}
+                                                        </div>
+                                                        <div className="text-xs text-slate-400">
+                                                            {profile.email || profile.user_id}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600">
+                                                        {profile.shop_name || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600">
+                                                        {profile.roaster_machine ? (
+                                                            <span>
+                                                                {profile.roaster_machine}
+                                                                {profile.roaster_size && ` (${profile.roaster_size})`}
+                                                            </span>
+                                                        ) : '-'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                                            {profile.access_count || 0} 回
                                                         </span>
-                                                    ) : '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                                        {profile.access_count || 0} 回
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-500 text-xs">
-                                                    {profile.last_active_at
-                                                        ? new Date(profile.last_active_at).toLocaleString('ja-JP')
-                                                        : '-'
-                                                    }
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-500 text-xs">
+                                                        {profile.last_active_at
+                                                            ? new Date(profile.last_active_at).toLocaleString('ja-JP')
+                                                            : '-'
+                                                        }
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        {!profile.email ? (
+                                                            <span className="text-xs text-slate-400">メール未登録</span>
+                                                        ) : status === 'sent' ? (
+                                                            <span className="text-xs text-green-600 font-medium">{message}</span>
+                                                        ) : status === 'error' ? (
+                                                            <span className="text-xs text-red-500">{message}</span>
+                                                        ) : (
+                                                            <div>
+                                                                <button
+                                                                    onClick={() => handleSendReminder(profile.user_id)}
+                                                                    disabled={!canSend || status === 'sending'}
+                                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${canSend && status !== 'sending'
+                                                                            ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-pointer'
+                                                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                        }`}
+                                                                >
+                                                                    <Mail size={12} />
+                                                                    {status === 'sending' ? '送信中...' : '送信'}
+                                                                </button>
+                                                                {profile.reminder_sent_at && !canSend && (
+                                                                    <div className="text-[10px] text-slate-400 mt-1">
+                                                                        前回: {new Date(profile.reminder_sent_at).toLocaleDateString('ja-JP')}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                         {profiles.length === 0 && (
                                             <tr>
-                                                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                                                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                                                     登録ユーザーがいません
                                                 </td>
                                             </tr>
