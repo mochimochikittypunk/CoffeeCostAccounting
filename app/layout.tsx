@@ -7,6 +7,7 @@ import { Header } from '../components/layout/Header';
 import { NavigationTabs } from '../components/layout/NavigationTabs';
 import { ClerkProvider } from '@clerk/nextjs'; // Import ClerkProvider
 import { jaJP } from '@clerk/localizations';
+import { ExitSurveyModal } from '../components/ui/ExitSurveyModal';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -29,6 +30,7 @@ export default function RootLayout({
                             <Header />
                             <NavigationTabs />
                             {children}
+                            <ExitSurveyModal />
                         </StorageProvider>
                     </LanguageProvider>
                 </body>
