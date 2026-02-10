@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Star } from 'lucide-react';
 
@@ -12,6 +12,7 @@ export const ExitSurveyModal: React.FC = () => {
     const [rating, setRating] = useState<number>(0);
     const [hoveredStar, setHoveredStar] = useState<number>(0);
     const [hasSubmitted, setHasSubmitted] = useState(false);
+    const exitIntentTriggered = useRef(false);
 
     // Check if already submitted this session
     useEffect(() => {
@@ -21,13 +22,34 @@ export const ExitSurveyModal: React.FC = () => {
         }
     }, []);
 
-    // beforeunload prompt — only if user is logged in and hasn't rated yet  
+    // Exit-intent detection: mouse leaves viewport toward top (close button area)
+    useEffect(() => {
+        if (!user || hasSubmitted) return;
+
+        const handleMouseLeave = (e: MouseEvent) => {
+            // Only trigger when mouse leaves from the top of the viewport
+            if (e.clientY <= 0 && !exitIntentTriggered.current && state === 'idle') {
+                exitIntentTriggered.current = true;
+                setState('open');
+            }
+        };
+
+        document.addEventListener('mouseleave', handleMouseLeave);
+        return () => document.removeEventListener('mouseleave', handleMouseLeave);
+    }, [user, hasSubmitted, state]);
+
+    // beforeunload: block browser close if survey not completed
     useEffect(() => {
         if (!user || hasSubmitted) return;
 
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (state === 'idle') {
+            if (state !== 'done') {
                 e.preventDefault();
+                // Show browser's native "Leave site?" dialog
+                // When user clicks "Stay", they'll see the survey modal
+                if (state === 'idle') {
+                    setState('open');
+                }
             }
         };
 
@@ -41,7 +63,6 @@ export const ExitSurveyModal: React.FC = () => {
 
         const handlePageHide = () => {
             if (rating > 0 && state !== 'done') {
-                // Use sendBeacon to fire-and-forget the rating on iOS Safari
                 const data = JSON.stringify({ rating });
                 navigator.sendBeacon('/api/survey', new Blob([data], { type: 'application/json' }));
             }
@@ -66,7 +87,12 @@ export const ExitSurveyModal: React.FC = () => {
                 setState('done');
                 setHasSubmitted(true);
                 sessionStorage.setItem('survey_submitted', 'true');
-                setTimeout(() => setState('idle'), 2000);
+                // After thank you, allow page to close naturally
+                setTimeout(() => {
+                    setState('idle');
+                    // Attempt to close the window (works if opened by script)
+                    window.close();
+                }, 1500);
             } else {
                 console.error('Survey submission failed');
                 setState('open');
@@ -119,44 +145,31 @@ export const ExitSurveyModal: React.FC = () => {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
                         display: 'flex',
-                        alignItems: 'flex-end',
+                        alignItems: 'center',
                         justifyContent: 'center',
-                        zIndex: 1001,
+                        zIndex: 10000,
                         WebkitBackdropFilter: 'blur(4px)',
                         backdropFilter: 'blur(4px)',
-                        // Prevent iOS scroll-through
                         overscrollBehavior: 'contain',
                     }}
-                    onClick={() => state === 'open' && setState('idle')}
+                // No click-to-dismiss — user must answer or use the skip button
                 >
                     <div
                         style={{
                             backgroundColor: '#1a1a2e',
-                            borderRadius: '16px 16px 0 0',
-                            padding: '28px 24px',
-                            paddingBottom: 'max(28px, env(safe-area-inset-bottom, 28px))',
-                            maxWidth: '480px',
-                            width: '100%',
+                            borderRadius: '16px',
+                            padding: '32px 28px',
+                            maxWidth: '400px',
+                            width: '90%',
                             textAlign: 'center',
                             border: '1px solid rgba(255, 255, 255, 0.1)',
-                            borderBottom: 'none',
-                            boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.4)',
-                            // Bottom sheet slide-up animation
-                            animation: 'survey-slide-up 0.3s ease-out',
+                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+                            animation: 'survey-scale-in 0.3s ease-out',
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Drag handle for mobile familiarity */}
-                        <div style={{
-                            width: '36px',
-                            height: '4px',
-                            borderRadius: '2px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                            margin: '0 auto 20px',
-                        }} />
-
                         {state === 'done' ? (
                             <div>
                                 <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎉</div>
@@ -167,14 +180,21 @@ export const ExitSurveyModal: React.FC = () => {
                                 }}>
                                     ご評価ありがとうございます！
                                 </p>
+                                <p style={{
+                                    color: '#6b7280',
+                                    fontSize: '13px',
+                                    marginTop: '8px',
+                                }}>
+                                    まもなくページを閉じます...
+                                </p>
                             </div>
                         ) : (
                             <>
                                 <p style={{
                                     color: '#e2e8f0',
-                                    fontSize: '16px',
+                                    fontSize: '17px',
                                     fontWeight: 600,
-                                    marginBottom: '20px',
+                                    marginBottom: '24px',
                                     lineHeight: 1.6,
                                 }}>
                                     今回のアプリ体験は
@@ -224,7 +244,7 @@ export const ExitSurveyModal: React.FC = () => {
                                     ))}
                                 </div>
 
-                                {/* Submit Button — large touch target */}
+                                {/* Submit Button */}
                                 <button
                                     onClick={handleSubmit}
                                     disabled={rating === 0 || state === 'submitting'}
@@ -249,43 +269,24 @@ export const ExitSurveyModal: React.FC = () => {
                                 >
                                     {state === 'submitting' ? '送信中...' : '送信する'}
                                 </button>
-
-                                {/* Skip */}
-                                <button
-                                    onClick={() => setState('idle')}
-                                    style={{
-                                        marginTop: '12px',
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#6b7280',
-                                        fontSize: '13px',
-                                        cursor: 'pointer',
-                                        padding: '8px 16px',
-                                        WebkitTapHighlightColor: 'transparent',
-                                        touchAction: 'manipulation',
-                                        minHeight: '44px',
-                                    }}
-                                >
-                                    あとで
-                                </button>
                             </>
                         )}
                     </div>
                 </div>
             )}
 
-            {/* CSS Animations — Safari compatible */}
+            {/* CSS Animations */}
             <style jsx global>{`
-                @keyframes survey-slide-up {
+                @keyframes survey-scale-in {
                     from {
                         opacity: 0;
-                        -webkit-transform: translateY(100%);
-                        transform: translateY(100%);
+                        -webkit-transform: scale(0.9);
+                        transform: scale(0.9);
                     }
                     to {
                         opacity: 1;
-                        -webkit-transform: translateY(0);
-                        transform: translateY(0);
+                        -webkit-transform: scale(1);
+                        transform: scale(1);
                     }
                 }
             `}</style>
