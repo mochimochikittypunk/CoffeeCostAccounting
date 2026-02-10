@@ -36,6 +36,28 @@ export default function AdminPage() {
     const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
     const isAdmin = userEmail && ADMIN_EMAILS.includes(userEmail);
 
+    useEffect(() => {
+        if (!isLoaded || !isAdmin) return;
+
+        const fetchData = async () => {
+            try {
+                const response = await fetch('/api/admin/stats');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch admin data');
+                }
+                const data = await response.json();
+                setProfiles(data.profiles || []);
+                setFeatureStats(data.featureStats || []);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Unknown error');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [isLoaded, isAdmin]);
+
     if (!isLoaded) {
         return <div className="p-8 text-center text-slate-500">Loading...</div>;
     }
@@ -109,13 +131,42 @@ export default function AdminPage() {
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">焙煎機</th>
                                             <th className="text-center px-4 py-3 font-medium text-slate-600">アクセス回数</th>
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">最終ログイン</th>
-                                            <td className="px-4 py-3 text-slate-500 text-xs">
-                                                {profile.last_active_at
-                                                    ? new Date(profile.last_active_at).toLocaleString('ja-JP')
-                                                    : '-'
-                                                }
-                                            </td>
                                         </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {profiles.map((profile) => (
+                                            <tr key={profile.id} className="hover:bg-slate-50">
+                                                <td className="px-4 py-3">
+                                                    <div className="font-medium text-slate-800">
+                                                        {profile.display_name || '(未設定)'}
+                                                    </div>
+                                                    <div className="text-xs text-slate-400">
+                                                        {profile.email || profile.user_id}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {profile.shop_name || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {profile.roaster_machine ? (
+                                                        <span>
+                                                            {profile.roaster_machine}
+                                                            {profile.roaster_size && ` (${profile.roaster_size})`}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                                        {profile.access_count || 0} 回
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-500 text-xs">
+                                                    {profile.last_active_at
+                                                        ? new Date(profile.last_active_at).toLocaleString('ja-JP')
+                                                        : '-'
+                                                    }
+                                                </td>
+                                            </tr>
                                         );
                                         })}
                                         {profiles.length === 0 && (
