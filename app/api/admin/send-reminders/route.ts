@@ -58,11 +58,13 @@ export async function POST(request: NextRequest) {
         const client = await clerkClient();
         const user = await client.users.getUser(userId!);
 
-        const userEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase();
+        const rawEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase();
 
-        if (!userEmail) {
+        if (!rawEmail) {
             return NextResponse.json({ error: 'Forbidden: No email found' }, { status: 403 });
         }
+
+        const userEmail: string = rawEmail;
 
         if (!ADMIN_EMAILS.includes(userEmail)) {
             return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
