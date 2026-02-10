@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     try {
         // 1. Admin authentication check
         const { userId } = await auth();
+
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
