@@ -152,18 +152,13 @@ export async function POST(request: NextRequest) {
             .eq('user_id', targetUserId);
 
         return NextResponse.json({
-    .from('profiles')
-                .update({ reminder_sent_at: new Date().toISOString() })
-                .eq('user_id', targetUserId);
+            success: true,
+            email: targetEmail,
+            dryRun: !resend,
+        });
 
-            return NextResponse.json({
-                success: true,
-                email: targetEmail,
-                dryRun: !resend,
-            });
-
-        } catch (error) {
-            console.error('Send reminder API error:', error);
-            return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-        }
+    } catch (error) {
+        console.error('Send reminder API error:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
+}
