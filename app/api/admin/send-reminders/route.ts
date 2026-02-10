@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
 
         const client = await clerkClient();
         const user = await client.users.getUser(userId);
+
         const userEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase();
 
         if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
@@ -124,11 +125,8 @@ export async function POST(request: NextRequest) {
         let sendResult = null;
 
         if (resend) {
-            const fromEmail = process.env.RESEND_FROM_EMAIL || 'Coffee Profit Simulator <noreply@resend.dev>';
-            console.log(`Attempting to send email from: ${fromEmail} to: ${targetEmail}`);
-
             const result = await resend.emails.send({
-                from: fromEmail,
+                from: 'Coffee Profit Simulator <noreply@coffee-profit-simulator.vercel.app>',
                 to: targetEmail,
                 subject: REMINDER_SUBJECT,
                 html: REMINDER_HTML,
@@ -136,13 +134,12 @@ export async function POST(request: NextRequest) {
 
             console.log('Resend API response:', JSON.stringify(result, null, 2));
 
-            if (result.error) {
+            if (result && result.error) { // Safe access to result.error
                 console.error('Resend API Error:', result.error);
                 return NextResponse.json({
                     error: `Email send failed: ${result.error.message}`
                 }, { status: 500 });
             }
-
             sendResult = result.data;
         } else {
             console.log(`[DRY RUN] Would send reminder to: ${targetEmail}`);
@@ -155,13 +152,18 @@ export async function POST(request: NextRequest) {
             .eq('user_id', targetUserId);
 
         return NextResponse.json({
-            success: true,
-            email: targetEmail,
-            dryRun: !resend,
-        });
+    .from('profiles')
+                .update({ reminder_sent_at: new Date().toISOString() })
+                .eq('user_id', targetUserId);
 
-    } catch (error) {
-        console.error('Send reminder API error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+            return NextResponse.json({
+                success: true,
+                email: targetEmail,
+                dryRun: !resend,
+            });
+
+        } catch (error) {
+            console.error('Send reminder API error:', error);
+            return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        }
     }
-}
