@@ -32,7 +32,7 @@ export default function RootLayout({
                             {children}
                             <ExitSurveyModal />
                             <footer className="text-center text-xs text-slate-400 py-4 mt-8">
-                                v0.2.15 (Deployed: {new Date().toLocaleDateString('ja-JP')} Build Fixed)
+                                v0.2.17 (Deployed: {new Date().toLocaleDateString('ja-JP')} Feature Removed)
                             </footer>
                         </StorageProvider>
                     </LanguageProvider>
