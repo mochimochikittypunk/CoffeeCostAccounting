@@ -72,7 +72,11 @@ export async function POST(request: NextRequest) {
         // 3. Get target user profile
         const { data: profile, error: fetchError } = await supabaseAdmin
             .from('profiles')
-            .select('user_id, email, reminder_sent_at')
+            .select('user_id, reminder_sent_at') // Removed 'email' as it might not accept it if column doesn't exist yet, or just select *? verify schema.
+            // Actually, keep selecting specific fields, but handle missing email.
+            // If email column doesn't exist, selecting it might error? No, Supabase usually ignores or returns null?
+            // Safer to just select user_id and reminder_sent_at for now, or select *
+            .select('*')
             .eq('user_id', targetUserId)
             .single();
 
@@ -80,7 +84,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        if (!profile.email) {
+        // Fetch email from Clerk
+        let targetEmail = profile.email;
+        if (!targetEmail) {
+            try {
+                const targetUser = await client.users.getUser(targetUserId);
+                targetEmail = targetUser.primaryEmailAddress?.emailAddress;
+            } catch (err) {
+                console.error('Failed to fetch user from Clerk:', err);
+            }
+        }
+
+        if (!targetEmail) {
             return NextResponse.json({ error: 'User has no email address' }, { status: 400 });
         }
 
@@ -103,12 +118,12 @@ export async function POST(request: NextRequest) {
         if (resend) {
             await resend.emails.send({
                 from: process.env.RESEND_FROM_EMAIL || 'Coffee Profit Simulator <noreply@resend.dev>',
-                to: profile.email,
+                to: targetEmail,
                 subject: REMINDER_SUBJECT,
                 html: REMINDER_HTML,
             });
         } else {
-            console.log(`[DRY RUN] Would send reminder to: ${profile.email}`);
+            console.log(`[DRY RUN] Would send reminder to: ${targetEmail}`);
         }
 
         // 6. Update reminder_sent_at
@@ -119,7 +134,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            email: profile.email,
+            email: targetEmail,
             dryRun: !resend,
         });
 

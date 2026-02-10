@@ -58,8 +58,17 @@ export async function GET(request: NextRequest) {
             // Don't fail entirely, just return empty stats
         }
 
+        // Fetch emails from Clerk to supplement profile data (for Google Auth users)
+        const clerkUsers = await client.users.getUserList({ limit: 100 });
+        const emailMap = new Map(clerkUsers.data.map(u => [u.id, u.primaryEmailAddress?.emailAddress]));
+
+        const profilesWithEmail = profiles?.map(p => ({
+            ...p,
+            email: p.email || emailMap.get(p.user_id) || null
+        })) || [];
+
         return NextResponse.json({
-            profiles: profiles || [],
+            profiles: profilesWithEmail,
             featureStats: featureStats || []
         });
 
