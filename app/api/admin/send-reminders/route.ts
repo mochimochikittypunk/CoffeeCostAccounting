@@ -100,6 +100,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. Check monthly limit (30 days)
+        // 4. Check monthly limit (30 days) - TEMPORARILY DISABLED FOR DEBUGGING
+        /*
         if (profile.reminder_sent_at) {
             const lastSent = new Date(profile.reminder_sent_at);
             const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest) {
                 }, { status: 429 });
             }
         }
+        */
 
         // 5. Send email
         const resend = getResend();

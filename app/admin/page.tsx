@@ -99,10 +99,14 @@ export default function AdminPage() {
     // Check if reminder can be sent (30-day cooldown)
     const canSendReminder = (profile: ProfileData): boolean => {
         if (!profile.email) return false;
+        // Temporarily allow sending anytime for debugging
+        return true;
+        /*
         if (!profile.reminder_sent_at) return true;
         const lastSent = new Date(profile.reminder_sent_at);
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         return lastSent < thirtyDaysAgo;
+        */
     };
 
     if (!isLoaded) {
