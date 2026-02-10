@@ -12,60 +12,91 @@ export const ExitSurveyModal: React.FC = () => {
     const [rating, setRating] = useState<number>(0);
     const [hoveredStar, setHoveredStar] = useState<number>(0);
     const [hasSubmitted, setHasSubmitted] = useState(false);
-    const isShowingNativeDialog = useRef(false);
+
+    // Use refs to avoid stale closures in event handlers
+    const stateRef = useRef<SurveyState>('hidden');
+    const hasSubmittedRef = useRef(false);
+    const userRef = useRef(user);
+    const showingDialogRef = useRef(false);
+
+    // Keep refs in sync with state
+    useEffect(() => { stateRef.current = state; }, [state]);
+    useEffect(() => { hasSubmittedRef.current = hasSubmitted; }, [hasSubmitted]);
+    useEffect(() => { userRef.current = user; }, [user]);
 
     // Check if already submitted this session
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const submitted = sessionStorage.getItem('survey_submitted');
-            if (submitted) setHasSubmitted(true);
+            if (submitted) {
+                setHasSubmitted(true);
+                hasSubmittedRef.current = true;
+            }
         }
     }, []);
 
-    // beforeunload: block browser close and show native dialog
-    // After user clicks "Stay", we show our custom survey modal
+    // Register beforeunload ONCE (no state dependencies to avoid re-registration)
+    // Uses refs to read current state without stale closure issues
     useEffect(() => {
-        if (!user || hasSubmitted) return;
-
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (state === 'hidden') {
-                isShowingNativeDialog.current = true;
-                e.preventDefault();
+            // Only block if user is logged in, hasn't submitted, and modal is hidden
+            if (!userRef.current || hasSubmittedRef.current) return;
+            if (stateRef.current !== 'hidden') return;
+
+            // Mark that we're showing the native dialog
+            showingDialogRef.current = true;
+
+            // CRITICAL: Both are needed for cross-browser compatibility
+            e.preventDefault();
+            e.returnValue = ''; // Required for Chrome/Safari
+        };
+
+        // After native dialog, if user clicks "Stay", focus returns to page
+        const handleFocus = () => {
+            if (showingDialogRef.current) {
+                showingDialogRef.current = false;
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    setState('open');
+                }, 100);
             }
         };
 
-        // When user clicks "Stay" on native dialog, focus returns to the page
-        // Use this to show our custom survey modal
-        const handleFocus = () => {
-            if (isShowingNativeDialog.current) {
-                isShowingNativeDialog.current = false;
-                setState('open');
+        // Also detect via visibility change (more reliable in some browsers)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && showingDialogRef.current) {
+                showingDialogRef.current = false;
+                setTimeout(() => {
+                    setState('open');
+                }, 100);
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [user, hasSubmitted, state]);
+    }, []); // Empty deps — registered once, uses refs for current values
 
-    // Safari pagehide fallback
+    // Safari pagehide fallback: send rating data if user closes without completing
     useEffect(() => {
-        if (!user || hasSubmitted) return;
-
         const handlePageHide = () => {
-            if (rating > 0 && state !== 'done') {
-                const data = JSON.stringify({ rating });
+            if (hasSubmittedRef.current) return;
+            const currentRating = rating;
+            if (currentRating > 0) {
+                const data = JSON.stringify({ rating: currentRating });
                 navigator.sendBeacon('/api/survey', new Blob([data], { type: 'application/json' }));
             }
         };
 
         window.addEventListener('pagehide', handlePageHide);
         return () => window.removeEventListener('pagehide', handlePageHide);
-    }, [user, hasSubmitted, rating, state]);
+    }, [rating]);
 
     const handleSubmit = useCallback(async () => {
         if (rating === 0 || !user) return;
@@ -81,9 +112,12 @@ export const ExitSurveyModal: React.FC = () => {
             if (res.ok) {
                 setState('done');
                 setHasSubmitted(true);
+                hasSubmittedRef.current = true;
                 sessionStorage.setItem('survey_submitted', 'true');
                 setTimeout(() => {
                     setState('hidden');
+                    stateRef.current = 'hidden';
+                    // Try to close (works if page was opened by script)
                     window.close();
                 }, 1500);
             } else {
@@ -96,12 +130,12 @@ export const ExitSurveyModal: React.FC = () => {
         }
     }, [rating, user]);
 
-    // Nothing rendered when hidden — completely invisible on the page
+    // Completely invisible when hidden — no UI elements whatsoever
     if (!user || hasSubmitted || state === 'hidden') return null;
 
     return (
         <>
-            {/* Full-screen survey modal */}
+            {/* Full-screen survey modal overlay */}
             <div
                 style={{
                     position: 'fixed',
@@ -151,7 +185,6 @@ export const ExitSurveyModal: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            {/* Emoji decoration */}
                             <div style={{ fontSize: '36px', marginBottom: '16px' }}>☕</div>
 
                             <p style={{
