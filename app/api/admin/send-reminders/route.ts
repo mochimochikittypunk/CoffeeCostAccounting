@@ -44,6 +44,9 @@ const REMINDER_HTML = `
 `;
 
 export async function POST(request: NextRequest) {
+    // Feature Flag: Disabled per user request
+    return NextResponse.json({ error: 'Feature disabled' }, { status: 403 });
+
     try {
         // 1. Admin authentication check
         const { userId } = await auth();

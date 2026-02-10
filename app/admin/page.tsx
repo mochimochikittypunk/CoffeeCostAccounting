@@ -134,6 +134,9 @@ export default function AdminPage() {
         'inventory': '📦 在庫管理'
     };
 
+    // Feature Flag: Email Reminders (Disabled per user request)
+    const showEmailReminders = false;
+
     return (
         <div className="p-4 sm:p-8 max-w-7xl mx-auto">
             <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
@@ -182,7 +185,9 @@ export default function AdminPage() {
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">焙煎機</th>
                                             <th className="text-center px-4 py-3 font-medium text-slate-600">アクセス回数</th>
                                             <th className="text-left px-4 py-3 font-medium text-slate-600">最終ログイン</th>
-                                            <th className="text-center px-4 py-3 font-medium text-slate-600">メールリマインド</th>
+                                            {showEmailReminders && (
+                                                <th className="text-center px-4 py-3 font-medium text-slate-600">メールリマインド</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -223,40 +228,42 @@ export default function AdminPage() {
                                                             : '-'
                                                         }
                                                     </td>
-                                                    <td className="px-4 py-3 text-center">
-                                                        {!profile.email ? (
-                                                            <span className="text-xs text-slate-400">メール未登録</span>
-                                                        ) : status === 'sent' ? (
-                                                            <span className="text-xs text-green-600 font-medium">{message}</span>
-                                                        ) : status === 'error' ? (
-                                                            <span className="text-xs text-red-500">{message}</span>
-                                                        ) : (
-                                                            <div>
-                                                                <button
-                                                                    onClick={() => handleSendReminder(profile.user_id)}
-                                                                    disabled={!canSend || status === 'sending'}
-                                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${canSend && status !== 'sending'
-                                                                        ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-pointer'
-                                                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                                        }`}
-                                                                >
-                                                                    <Mail size={12} />
-                                                                    {status === 'sending' ? '送信中...' : '送信'}
-                                                                </button>
-                                                                {profile.reminder_sent_at && !canSend && (
-                                                                    <div className="text-[10px] text-slate-400 mt-1">
-                                                                        前回: {new Date(profile.reminder_sent_at).toLocaleDateString('ja-JP')}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </td>
+                                                    {showEmailReminders && (
+                                                        <td className="px-4 py-3 text-center">
+                                                            {!profile.email ? (
+                                                                <span className="text-xs text-slate-400">メール未登録</span>
+                                                            ) : status === 'sent' ? (
+                                                                <span className="text-xs text-green-600 font-medium">{message}</span>
+                                                            ) : status === 'error' ? (
+                                                                <span className="text-xs text-red-500">{message}</span>
+                                                            ) : (
+                                                                <div>
+                                                                    <button
+                                                                        onClick={() => handleSendReminder(profile.user_id)}
+                                                                        disabled={!canSend || status === 'sending'}
+                                                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${canSend && status !== 'sending'
+                                                                            ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-pointer'
+                                                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                            }`}
+                                                                    >
+                                                                        <Mail size={12} />
+                                                                        {status === 'sending' ? '送信中...' : '送信'}
+                                                                    </button>
+                                                                    {profile.reminder_sent_at && !canSend && (
+                                                                        <div className="text-[10px] text-slate-400 mt-1">
+                                                                            前回: {new Date(profile.reminder_sent_at).toLocaleDateString('ja-JP')}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                 </tr>
                                             );
                                         })}
                                         {profiles.length === 0 && (
                                             <tr>
-                                                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                                                <td colSpan={showEmailReminders ? 6 : 5} className="px-4 py-8 text-center text-slate-500">
                                                     登録ユーザーがいません
                                                 </td>
                                             </tr>
