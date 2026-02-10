@@ -60,11 +60,12 @@ export async function POST(request: NextRequest) {
 
         const rawEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase();
 
-        if (!rawEmail) {
+        // Force string type to satisfy compiler (even if unreachable)
+        const userEmail = rawEmail || '';
+
+        if (!userEmail) {
             return NextResponse.json({ error: 'Forbidden: No email found' }, { status: 403 });
         }
-
-        const userEmail: string = rawEmail;
 
         if (!ADMIN_EMAILS.includes(userEmail)) {
             return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
