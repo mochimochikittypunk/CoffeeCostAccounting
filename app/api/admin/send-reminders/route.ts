@@ -115,13 +115,29 @@ export async function POST(request: NextRequest) {
         // 5. Send email
         const resend = getResend();
 
+        let sendResult = null;
+
         if (resend) {
-            await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'Coffee Profit Simulator <noreply@resend.dev>',
+            const fromEmail = process.env.RESEND_FROM_EMAIL || 'Coffee Profit Simulator <noreply@resend.dev>';
+            console.log(`Attempting to send email from: ${fromEmail} to: ${targetEmail}`);
+
+            const result = await resend.emails.send({
+                from: fromEmail,
                 to: targetEmail,
                 subject: REMINDER_SUBJECT,
                 html: REMINDER_HTML,
             });
+
+            console.log('Resend API response:', JSON.stringify(result, null, 2));
+
+            if (result.error) {
+                console.error('Resend API Error:', result.error);
+                return NextResponse.json({
+                    error: `Email send failed: ${result.error.message}`
+                }, { status: 500 });
+            }
+
+            sendResult = result.data;
         } else {
             console.log(`[DRY RUN] Would send reminder to: ${targetEmail}`);
         }
