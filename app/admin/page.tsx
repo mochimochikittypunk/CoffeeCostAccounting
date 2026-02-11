@@ -167,26 +167,24 @@ export default function AdminPage() {
                                                     }
                                                 </td>
                                             </tr>
-                                            </tr>
                                         ))}
-                                    {profiles.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                                                登録ユーザーがいません
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                        {profiles.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                                                    登録ユーザーがいません
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
-                    <div className="mt-2 text-xs text-slate-400">
-                        全 {profiles.length} ユーザー
-                    </div>
-                </section>
-        </>
-    )
-}
-        </div >
+                        <div className="mt-2 text-xs text-slate-400">
+                            全 {profiles.length} ユーザー
+                        </div>
+                    </section>
+                </>
+            )}
+        </div>
     );
 }
