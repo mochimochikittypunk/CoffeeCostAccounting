@@ -18,14 +18,14 @@ interface InventoryCardProps {
 }
 
 export const InventoryCard: React.FC<InventoryCardProps> = ({ item, allItems }) => {
-    const { consumeInventory, removeInventoryItem } = useStorage();
+    const { consumeInventory, removeInventoryItem, globalSettings } = useStorage();
     const { t, locale } = useLanguage();
     const [consumeAmount, setConsumeAmount] = useState<string>('');
     const [showConsume, setShowConsume] = useState(false);
 
     const daysInStock = calculateDaysInStock(item.registeredAt);
     const valuationGain = calculateValuationGain(item);
-    const potentialBags = calculatePotentialBags(item, 200); // Assuming 200g bags
+    const potentialBags = calculatePotentialBags(item, globalSettings.salesUnitG || 200); // Use global setting
     const isSlowMoving = isSlowMovingStock(item, allItems);
     const stockStatus = getStockLevelStatus(item.stockWeightKg);
 

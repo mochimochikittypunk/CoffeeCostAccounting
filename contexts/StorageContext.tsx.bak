@@ -639,7 +639,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
     }, [inventory, user, isSupabaseConnected, getToken]);
 
-    const undoOperation = useCallback(async (logId: string) => {
+    const undoOperation = useCallback((logId: string) => {
         const logToUndo = inventoryHistory.find(l => l.id === logId);
         if (!logToUndo) return;
 
@@ -668,23 +668,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
             return nextInv;
         });
 
-        // Optimistic update local history
         setInventoryHistory(currentHistory => currentHistory.filter(l => !logsToUndoIds.has(l.id)));
-
-        // Sync delete to Supabase
-        if (user && isSupabaseConnected) {
-            try {
-                const token = await getToken({ template: 'supabase' });
-                const supabase = createSupabaseClient(token);
-
-                await supabase
-                    .from('inventory_history')
-                    .delete()
-                    .in('id', Array.from(logsToUndoIds));
-            } catch (err) {
-                console.error('Failed to sync undo to Supabase:', err);
-            }
-        }
     }, [inventoryHistory, user, isSupabaseConnected, getToken]);
 
     return (
