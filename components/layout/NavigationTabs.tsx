@@ -82,6 +82,15 @@ export const NavigationTabs: React.FC = () => {
                                 👑 管理画面
                             </Link>
                         )}
+                        {/* External Roasting App Link */}
+                        <a
+                            href="https://roast-master-log.vercel.app/roast"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-1 border-b-2 text-xs sm:text-sm font-medium h-full transition-colors border-transparent text-slate-500 hover:text-orange-600 hover:border-orange-300"
+                        >
+                            🔥 焙煎アプリ
+                        </a>
                     </div>
 
                     {/* Right: Language & Auth */}
