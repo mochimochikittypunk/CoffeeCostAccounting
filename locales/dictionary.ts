@@ -24,6 +24,7 @@ export interface Dictionary {
         roastLoss: string;
         handpickLoss: string;
         utilityCost: string;
+        batchSize: string;
         packagingCost: string;
         taxSettings: string;
         isTaxable: string;
@@ -255,6 +256,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
             roastLoss: '焙煎ロス率 (%)',
             handpickLoss: 'ハンドピックロス率 (%)',
             utilityCost: '光熱費/バッチ (円)',
+            batchSize: '1バッチの量 (kg)',
             packagingCost: 'パッケージ費用/袋 (円)',
             taxSettings: '消費税設定',
             isTaxable: '課税事業者ですか？',
@@ -483,6 +485,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
             roastLoss: 'Roast Loss (%)',
             handpickLoss: 'Handpick Loss (%)',
             utilityCost: 'Utility Cost/Batch (JPY)',
+            batchSize: 'Batch Size (kg)',
             packagingCost: 'Packaging Cost/Bag (JPY)',
             taxSettings: 'Tax Settings',
             isTaxable: 'Are you a Taxable Entity?',

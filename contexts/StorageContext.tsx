@@ -113,6 +113,7 @@ const initialGlobalSettings: GlobalSettings = {
     roastLossRate: 20,
     handpickLossRate: 0,
     utilityCostPerRoast: 0,
+    utilityBatchSizeKg: 1,
     packagingCost: 0,
     isTaxableEntity: false
 };

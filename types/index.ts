@@ -105,6 +105,7 @@ export interface GlobalSettings {
 
     handpickLossRate: number;
     utilityCostPerRoast: number;
+    utilityBatchSizeKg: number; // kg per batch (e.g. 0.7, 1, 3)
     packagingCost: number; // JPY per bag
 
     // Tax Settings

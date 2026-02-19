@@ -92,11 +92,14 @@ export const calculateBeanMetrics = (
         ? Math.round(purchasePriceIncTax / (1 + taxRateDecimal))
         : purchasePriceIncTax;
 
-    // Utility Cost (Usually Tax Included, treating same logic)
-    const utilityCostIncTax = globalSettings.utilityCostPerRoast;
-    const utilityCostBase = globalSettings.isTaxableEntity
-        ? Math.round(utilityCostIncTax / (1 + taxRateDecimal)) // Assuming 10% or 8%, using same rate for simplicity
-        : utilityCostIncTax;
+    // Utility Cost: derive per-kg rate from batch spec
+    // e.g. 1000 JPY / 3kg batch = 333.3 JPY/kg
+    const batchSizeKg = globalSettings.utilityBatchSizeKg || 1;
+    const utilityCostPerKgIncTax = globalSettings.utilityCostPerRoast / batchSizeKg;
+    const utilityCostPerBagIncTax = utilityCostPerKgIncTax * (globalSettings.salesUnitG / 1000);
+    const utilityCostPerBagBase = globalSettings.isTaxableEntity
+        ? Math.round(utilityCostPerBagIncTax / (1 + taxRateDecimal))
+        : utilityCostPerBagIncTax;
 
     // Packaging Cost (Per Bag)
     const packagingCostIncTax = globalSettings.packagingCost || 0;
@@ -106,11 +109,9 @@ export const calculateBeanMetrics = (
 
 
     // 3. Cost Per Bag
-    // Batch Cost
-    const batchCostBase = purchasePriceBase + utilityCostBase;
-    const baseCostPerBag = batchCostBase / sellableUnits;
+    const baseCostPerBag = purchasePriceBase / sellableUnits;
 
-    const costPerBag = Math.ceil(baseCostPerBag + packagingCostBase);
+    const costPerBag = Math.ceil(baseCostPerBag + utilityCostPerBagBase + packagingCostBase);
 
 
     // 4. Recommended Retail Price
@@ -200,11 +201,11 @@ export const calculateBeanMetrics = (
         const shippingNet = Math.round(shippingIncTax / (1 + taxRateDecimal));
         const packagingNet = Math.round(packagingCostBase); // Already net derived
 
-        contributionPerBag = revenueNet - feeNet - shippingNet - packagingNet;
-        investmentTotal = purchasePriceBase + utilityCostBase;
+        contributionPerBag = revenueNet - feeNet - shippingNet - packagingNet - utilityCostPerBagBase;
+        investmentTotal = purchasePriceBase;
     } else {
-        contributionPerBag = retailPrice - feePerBagIncTax - shippingIncTax - packagingCostIncTax;
-        investmentTotal = purchasePriceIncTax + utilityCostIncTax;
+        contributionPerBag = retailPrice - feePerBagIncTax - shippingIncTax - packagingCostIncTax - utilityCostPerBagIncTax;
+        investmentTotal = purchasePriceIncTax;
     }
 
     let breakevenUnits = 999999;

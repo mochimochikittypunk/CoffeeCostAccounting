@@ -98,6 +98,19 @@ export const GlobalSettingsForm: React.FC<GlobalSettingsFormProps> = ({ settings
                     />
                 </div>
 
+                {/* Batch Size */}
+                <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                        {t.globalSettings.batchSize}
+                    </label>
+                    <NumberInput
+                        value={settings.utilityBatchSizeKg}
+                        onChange={(v) => handleChange('utilityBatchSizeKg', Math.max(0.1, v))}
+                        className="w-full text-sm p-2 border border-slate-200 rounded-md text-slate-900"
+                        step={0.1}
+                    />
+                </div>
+
                 {/* Packaging Cost */}
                 <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
