@@ -300,16 +300,18 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
 
                 if (consumptionError) {
                     console.error('Failed to fetch consumption data:', consumptionError);
-                } else if (consumptionData) {
-                   const consumptionLogs: InventoryOperationLog[] = consumptionData.map((h: any) => ({
-                        id: h.id,
-                        timestamp: h.created_at,
-                        type: h.type as any,
-                        itemId: h.inventory_item_id || 'unknown',
-                        itemName: h.name,
-                        amountDelta: h.amount_delta,
-                   }));
-                   setMonthlyRoastingData(aggregateMonthlyRoasting(consumptionLogs));
+                    setMonthlyRoastingData(aggregateMonthlyRoasting([]));
+                } else {
+                    const logsData = consumptionData || [];
+                    const consumptionLogs: InventoryOperationLog[] = logsData.map((h: any) => ({
+                         id: h.id,
+                         timestamp: h.created_at,
+                         type: h.type as any,
+                         itemId: h.inventory_item_id || 'unknown',
+                         itemName: h.item_name || 'unknown',
+                         amountDelta: h.amount_delta,
+                    }));
+                    setMonthlyRoastingData(aggregateMonthlyRoasting(consumptionLogs));
                 }
 
             } catch (err: any) {
