@@ -84,3 +84,40 @@ export function calculateAverageTurnoverDays(items: InventoryItem[]): number {
     const totalDays = items.reduce((sum, item) => sum + calculateDaysInStock(item.registeredAt), 0);
     return Math.round(totalDays / items.length);
 }
+
+/**
+ * Aggregate CONSUME history logs into monthly totals (kg)
+ * Returns the last 12 months including the current month, even if 0.
+ */
+import { InventoryOperationLog } from '../types';
+
+export function aggregateMonthlyRoasting(logs: InventoryOperationLog[]): { month: string; totalKg: number }[] {
+    const monthsData = new Map<string, number>();
+    
+    // Initialize the last 12 months with 0
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthsData.set(monthStr, 0);
+    }
+
+    // Aggregate only CONSUME logs
+    logs.filter(log => log.type === 'CONSUME').forEach(log => {
+        const date = new Date(log.timestamp);
+        const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        // Only count if it's within our initialized 12 months map
+        if (monthsData.has(monthStr)) {
+            const currentTotal = monthsData.get(monthStr) || 0;
+            // amountDelta is negative for CONSUME, so we take absolute or subtract
+            const amount = Math.abs(log.amountDelta);
+            monthsData.set(monthStr, currentTotal + amount);
+        }
+    });
+
+    // Convert map to array and sort descending (newest month first)
+    return Array.from(monthsData.entries())
+        .map(([month, totalKg]) => ({ month, totalKg }))
+        .sort((a, b) => b.month.localeCompare(a.month));
+}

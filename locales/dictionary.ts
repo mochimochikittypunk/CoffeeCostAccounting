@@ -208,6 +208,10 @@ export interface Dictionary {
         totalGain: string;
         avgTurnoverDays: string;
         dayUnit: string;
+        monthlyRoasting: string;
+        monthlyRoastingUnit: string;
+        monthlyRoastingDropdown: string;
+        noRoastingData: string;
         // Form
         formTitle: string;
         beanName: string;
@@ -439,6 +443,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
             totalGain: '総評価益',
             avgTurnoverDays: '平均在庫日数',
             dayUnit: '日',
+            monthlyRoasting: '月間焙煎量',
+            monthlyRoastingUnit: 'kg',
+            monthlyRoastingDropdown: '直近12ヶ月',
+            noRoastingData: '焙煎データなし',
             // Form
             formTitle: '📦 新規在庫登録',
             beanName: '豆の名称',
@@ -668,6 +676,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
             totalGain: 'Total Gain',
             avgTurnoverDays: 'Avg. Days in Stock',
             dayUnit: ' days',
+            monthlyRoasting: 'Monthly Roasting',
+            monthlyRoastingUnit: 'kg',
+            monthlyRoastingDropdown: 'Last 12 Months',
+            noRoastingData: 'No roasting data',
             // Form
             formTitle: '📦 Add New Inventory',
             beanName: 'Bean Name',

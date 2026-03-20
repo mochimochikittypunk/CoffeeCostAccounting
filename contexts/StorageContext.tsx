@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useUser, useAuth } from '@clerk/nextjs';
 import { createSupabaseClient } from '../lib/supabaseClient';
 import { Bean, GlobalSettings, FeeSettings, BlendRecipe, InventoryItem, InventoryOperationLog, SetProduct, UserProfile } from '../types';
+import { aggregateMonthlyRoasting } from '../utils/inventoryCalculations';
 
 // localStorage keys
 const STORAGE_KEYS = {
@@ -62,6 +63,9 @@ interface StorageContextType {
 
     // Feature Usage Tracking
     logFeatureUsage: (featureName: 'single_origin' | 'blend' | 'set' | 'inventory') => Promise<void>;
+
+    // Monthly Roasting Data
+    monthlyRoastingData: { month: string; totalKg: number }[];
 }
 
 const StorageContext = createContext<StorageContextType | undefined>(undefined);
@@ -178,6 +182,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     const [feeSettings, setFeeSettings] = useState<FeeSettings>(initialFeeSettings);
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [inventoryHistory, setInventoryHistory] = useState<InventoryOperationLog[]>([]);
+    const [monthlyRoastingData, setMonthlyRoastingData] = useState<{ month: string; totalKg: number }[]>([]);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [setProduct, setSetProduct] = useState<SetProduct>(initialSetProduct);
     const [isHydrated, setIsHydrated] = useState(false);
@@ -191,6 +196,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
         // inventory is loaded from Supabase only
         setInventory([]);
         setInventoryHistory([]);
+        setMonthlyRoastingData([]);
         setUserProfile(null);
         setSetProduct(getStoredValue(STORAGE_KEYS.SET_PRODUCT, initialSetProduct));
         setIsHydrated(true);
@@ -213,6 +219,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
                 setFeeSettings(initialFeeSettings);
                 setSetProduct(initialSetProduct);
                 setInventoryHistory([]);
+                setMonthlyRoastingData([]);
                 return;
             }
 
@@ -275,8 +282,34 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
                         itemId: h.inventory_item_id || 'unknown',
                         itemName: h.name,
                         amountDelta: h.amount_delta,
-                        relatedLogIds: []
+                        relatedLogIds: [] // Supabase scheme might not return this out of the box unless joined, so keeping it simple
                     })));
+                }
+
+                // D. Fetch last 12 months consumption for analytics
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                oneYearAgo.setDate(1); // Set to start of the month 1 year ago
+
+                const { data: consumptionData, error: consumptionError } = await supabase
+                    .from('inventory_history')
+                    .select('*')
+                    .eq('type', 'CONSUME')
+                    .gte('created_at', oneYearAgo.toISOString())
+                    .order('created_at', { ascending: false });
+
+                if (consumptionError) {
+                    console.error('Failed to fetch consumption data:', consumptionError);
+                } else if (consumptionData) {
+                   const consumptionLogs: InventoryOperationLog[] = consumptionData.map((h: any) => ({
+                        id: h.id,
+                        timestamp: h.created_at,
+                        type: h.type as any,
+                        itemId: h.inventory_item_id || 'unknown',
+                        itemName: h.name,
+                        amountDelta: h.amount_delta,
+                   }));
+                   setMonthlyRoastingData(aggregateMonthlyRoasting(consumptionLogs));
                 }
 
             } catch (err: any) {
@@ -595,6 +628,21 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
                         })
                     ));
                 }
+                
+                // Optimistically update monthly roasting data
+                setMonthlyRoastingData(prev => {
+                     const fakeLogs: InventoryOperationLog[] = [mainLog, ...relatedLogs];
+                     // It is not completely accurate as we need all logs, but it updates the current month.
+                     // A safe way is to refetch, but here we just append logic
+                     const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                     const totalNewConsumption = fakeLogs.reduce((acc, log) => acc + Math.abs(log.amountDelta), 0);
+                     return prev.map(data => {
+                         if (data.month === currentMonth) {
+                             return { ...data, totalKg: data.totalKg + totalNewConsumption };
+                         }
+                         return data;
+                     })
+                });
 
             } catch (err) {
                 console.error('Failed to sync consumption to Supabase', err);
@@ -712,7 +760,8 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
             credits,
             isHydrated,
             isSupabaseConnected,
-            logFeatureUsage
+            logFeatureUsage,
+            monthlyRoastingData
         }}>
             {children}
         </StorageContext.Provider>

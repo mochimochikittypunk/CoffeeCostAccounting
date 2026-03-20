@@ -160,6 +160,11 @@ export interface InventoryOperationLog {
     relatedLogIds?: string[]; // IDs of related logs (for cascade undo)
 }
 
+export interface MonthlyRoastingData {
+    month: string;   // "YYYY-MM" format
+    totalKg: number;
+}
+
 export interface UserProfile {
     id: string;
     userId: string;
